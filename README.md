@@ -7,7 +7,7 @@
 
 ### Outils
 Fonction de hashage rapide
-Non cryptographique car pas besoin des propriétés de non réversibilité : https:/github.com/Cyan4973/xxHash/releases/
+Non cryptographique car pas besoin des propriétés de non réversibilité : [https:/github.com/Cyan4973/xxHash/](https:/github.com/Cyan4973/xxHash/)
 
 Installation:
 ```
