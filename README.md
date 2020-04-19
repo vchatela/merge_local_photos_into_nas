@@ -7,7 +7,7 @@
 
 ### Outils
 Fonction de hashage rapide
-Non cryptographique car pas besoin des propriétés de non réversibilité : https://github.com/Cyan4973/xxHash/releases/
+Non cryptographique car pas besoin des propriétés de non réversibilité : https:/github.com/Cyan4973/xxHash/releases/
 
 Installation:
 ```
@@ -29,15 +29,15 @@ Les actions nécessaires en cas de mise à jour :
 
 1. Rajouter les nouvelles valeurs de hash dans les fichiers de tests
 ```
-$ find /mnt/d/Syno/tools/photos/sources_test -type f -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort' \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec /mnt/d/Syno/tools/photos/xxHash-0.7.2/xxhsum -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/'
-3c079ec2b7095f3f05c786ad89edc14c          /mnt/d/Syno/tools/photos/sources_test/photo3.png
-62f599af1fc5ed02f4a0ba23076c0d9e          /mnt/d/Syno/tools/photos/sources_test/photo1.png
-a4c3374cb47c8ccb88032a7db564330f          /mnt/d/Syno/tools/photos/sources_test/photo2.png
+$ find /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test -type f -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort' \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec /mnt/d/Syno/tools/photos/xxHash-0.7.2/xxhsum -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/'
+3c079ec2b7095f3f05c786ad89edc14c          /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test/photo3.png
+62f599af1fc5ed02f4a0ba23076c0d9e          /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test/photo1.png
+a4c3374cb47c8ccb88032a7db564330f          /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test/photo2.png
 
-$ find /mnt/d/Syno/tools/photos/sources_test -type f -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort' \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec /mnt/d/Syno/tools/photos/xxHash-0.7.3/xxhsum -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/'
-12b9ef0f6f899ba279911d838a5daa3e          /mnt/d/Syno/tools/photos/sources_test/photo1.png
-a09a7a222b94bbdf5618a18dda32e66c          /mnt/d/Syno/tools/photos/sources_test/photo3.png
-aa7b076cbac4bceb352cfa3d084be34f          /mnt/d/Syno/tools/photos/sources_test/photo2.png
+$ find /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test -type f -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort' \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec /mnt/d/Syno/tools/photos/xxHash-0.7.3/xxhsum -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/'
+12b9ef0f6f899ba279911d838a5daa3e          /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test/photo1.png
+a09a7a222b94bbdf5618a18dda32e66c          /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test/photo3.png
+aa7b076cbac4bceb352cfa3d084be34f          /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test/photo2.png
 ```
 
 2. Modifier dans test_check_fileexist.sh , check_fileexist_syno.sh et dans move_tempphoto_to_photo.sh les nouveaux chemins de xxh_location.
@@ -48,7 +48,7 @@ xxh_location=/volume1/tools/photos/xxHash-0.7.3/xxhsum
 ```
 3. Relancer l'indexation avec le nouvel algorithme
 ```
-admin@synology:~$ /volume1/tools/photos/check_fileexist_syno.sh --nas --log
+admin@synology:~$ /volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --nas --log
 ```
 
 ### Synology Drive PC
@@ -60,13 +60,13 @@ Accès de D:\Syno\tools depuis /mnt/d/Syno/tools
 
 ### Astuce montage SD (bash W10)
 ```
-valentin@pc:/mnt/d/Syno/tools/photos$ cat mount_sd_h.sh
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ cat mount_sd_h.sh
 sudo mkdir -p /mnt/h
 sudo mount -t drvfs H: /mnt/h
 # Lancement de la fonction $1 (copy OU test) et $2 le nom de l'album (peut être un chemin avec les /)
-/mnt/d/Syno/tools/photos/check_fileexist_syno.sh --$1 /mnt/h/DCIM/100D5300/ "$2"
+/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --$1 /mnt/h/DCIM/100D5300/ "$2"
 
-valentin@pc:/mnt/d/Syno/tools/photos$./mount_sd_h.sh test "Noël/Test 01-01-01"
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$./mount_sd_h.sh test "Noël/Test 01-01-01"
 ...
 ```
 
@@ -124,20 +124,20 @@ aa7b076cbac4bceb352cfa3d084be34f        /volume1/photo/Test - 01-01-01/photo2.pn
 ### Tâches planifiées
 #### Générer hashlists (chaque 3 jours)
 ```
-/volume1/tools/photos/check_fileexist_syno.sh
+/volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh
 ```
 3.1.2 Déplacer photos (toutes les 1h)
 ```
-/volume1/tools/photos/move_tempphoto_to_photo.sh
+/volume1/tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh
 ```
 # Utilisations      
 Création de l'indexation sur le NAS
 ```
-admin@synology:~$ /volume1/tools/photos/check_fileexist_syno.sh --nas
+admin@synology:~$ /volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --nas
 ```
 Envoi vers l'album 1
 ```
-valentin@pc:/mnt/d/Syno/tools/photos$ ./clean_photos.sh && /mnt/d/Syno/tools/photos/check_fileexist_syno.sh --copy /tmp/test_copy_photos/ "Mon album 1" --log
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./clean_photos.sh && /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --copy /tmp/test_copy_photos/ "Mon album 1" --log
 Chargement de l'album : Mon album 1
 Durée : 1 secondes
 Copiées : 3
@@ -152,12 +152,12 @@ Aucune photo déjà trouvée.
 ```
 Simulation de l'envoi pour détecter les photos déjà présentes
 ```
-valentin@pc:/mnt/d/Syno/tools/photos$ /mnt/d/Syno/tools/photos/check_fileexist_syno.sh --test /tmp/test_copy_photos/ "Mon album 1" --log
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --test /tmp/test_copy_photos/ "Mon album 1" --log
 ...
 ```
 Tâche automatique de rangement des photos sur le NAS
 ```
-admin@synology:~$ /volume1/tools/photos/move_tempphoto_to_photo.sh
+admin@synology:~$ /volume1/tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh
 Exécution du : Tue Apr 14 23:18:07 CEST 2020
 -----
 Album : Mon album 1
@@ -174,7 +174,7 @@ Toutes les photos déplacées
 ### Test PC
 #### Test 1 : Envoi de 3 photos
 ```
-valentin@pc:/mnt/d/Syno/tools/photos$ ./test_check_fileexist.sh test1
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./test_check_fileexist.sh test1
 ## Test 1 ##
 ## Run script ##
 Chargement de l'album : Test - 01-01-01
@@ -195,7 +195,7 @@ Result : 0
 ```
 #### Test 2 : Envoi de 3 photos dont 1 déjà présente (fake insertion dans le nas_hashlist)
 ```
-valentin@pc:/mnt/d/Syno/tools/photos$ ./test_check_fileexist.sh test2
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./test_check_fileexist.sh test2
 ## Run script ##
 Chargement de l'album : Test - 01-01-01
 Durée : 1 secondes
@@ -214,7 +214,7 @@ Result : 0
 ```
 #### Test 3 : Vérification du fichier copied_hashlist utilisé pour s'assurer du téléchargement complet
 ```
-valentin@pc:/mnt/d/Syno/tools/photos$ ./test_check_fileexist.sh test3
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./test_check_fileexist.sh test3
 ## Test 3 ##
 ## Run script ##
 Chargement de l'album : Test - 01-01-01
@@ -239,7 +239,7 @@ TODO
 ```
 ### Test NAS (test 5 seulement)
 ```
-admin@synology:/volume1/tools/photos/xxHash-0.7.3$ /volume1/tools/photos/test_check_fileexist.sh test5
+admin@synology:/volume1/tools/photos/xxHash-0.7.3$ /volume1/tools/photos/merge_local_photos_into_nas/test_check_fileexist.sh test5
 ### Backup haslists ###
 Using limit_find_output=50
 ------------- Working on synology -------------
@@ -249,8 +249,8 @@ source_dcim_folder=/volume1/photo/
 Durée : 2 secondes
 ## Compte rendu ##
 Verifications des fichiers Hash ..
-50 lignes dans /volume1/tools/photos/nas_hashlist.hash
-50 lignes dans /volume1/tools/photos/nas_hashlist_with_filename.hash
+50 lignes dans /volume1/tools/photos/merge_local_photos_into_nas/hashfiles/nas_hashlist.hash
+50 lignes dans /volume1/tools/photos/merge_local_photos_into_nas/hashfiles/nas_hashlist_with_filename.hash
 ##### hashlist_with_filename contenu #####
 show only 10
 01b23cf16b0c49ce682a1f766a55cf99          /volume1/photo/Amour/received_m_mid_1409213635892_8eac44fa27e87f4494_0.jpeg
@@ -294,6 +294,6 @@ Vérifier si vaut mieux rename avant ou après envoi ?
 On laissera le script faire la maj et la réindexation en suivant
 ```
 # Tâche planifiée tous les 3 jours
-/volume1/tools/photos/exiftool_rename_pictures.sh
-/volume1/tools/photos/check_fileexist_syno.sh --nas
+/volume1/tools/photos/merge_local_photos_into_nas/exiftool_rename_pictures.sh
+/volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --nas
 ```
