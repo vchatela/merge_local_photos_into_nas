@@ -262,6 +262,10 @@ while [ $# -gt 0 ]; do
 			;;
 		-c|--copy)
 			MODE=copy
+			if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
+				echo_error "Synology source is not an available feature."
+				exit -3
+			fi
 			if [ $REUSE -eq 1 ] && [ $# -lt 2 ] || [ $# -lt 3 ]; then
 				echo '2 paramètres sont nécessaires : Dossier source des photos + Nom de l album de destination (peut être un chemin comme "Noël/Mon Super Noel" mais ne pas oublier d entourer de guillemets.)'
 				echo 'Example : check_fileexist_syno.sh --copy /tmp/Photos a envoyer/ "Noël/Super Album - 25-12-19/"'
