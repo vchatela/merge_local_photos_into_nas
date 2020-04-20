@@ -1,4 +1,5 @@
 # Architecture
+![Schéma Global](https://i.postimg.cc/brvmLmbf/merge-photos-into-nas.png)
 ## Pré-Configuration
 ### NAS - Dossier partagés sur Synology Drive
 /photo : dossier racine avec tous les albums dedans  -- NON SYNC avec Syno Drive
