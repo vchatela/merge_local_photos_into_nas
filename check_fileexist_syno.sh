@@ -3,6 +3,8 @@
 ## - Why some found are not found in FOUND --- to be reproduced
 ## - manage multiple returns of already-copied
 ## - finish --reuse feature // validate behavior
+## Comment faire du fait du comm -2 pour traiter les fichiers qu'on trouve déjà ??
+##    => il faudrait (temporairement) retirer les fichiers du dossier en cours (/volume1/photo/Album...) des fichiers nas_hashlist*
 
 displaytime() {
 	local T=$1
@@ -105,9 +107,9 @@ make_hasfile_folder(){
 	echo_verbose "------------- Creating Hashfile -------------"
 
 	if [ $SHORT -eq 1 ]; then
-		find $source_dcim_folder -type f -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) | head -$limit_find_output | xargs -d "\n" $xxh_location -H2 | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > $hashlist_with_filename
+		find "$source_dcim_folder" -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) | head -$limit_find_output | xargs -d "\n" $xxh_location -H2 | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > $hashlist_with_filename
 	else
-		find $source_dcim_folder -type f -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec $xxh_location -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > $hashlist_with_filename
+		find "$source_dcim_folder" -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec $xxh_location -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > $hashlist_with_filename
 	fi
 	#f370a6aaaa87714bb13d219f79058549  ./DSC_2876.JPG
 	cat $hashlist_with_filename | awk '{print $1}' > $hashlist
@@ -123,24 +125,94 @@ make_uniq_hashfile_folder(){
 	fi
 }
 
+backup_nas_hashlists(){
+	today_date="$1"
+	echo "### Backup haslists nas ###"
+	cp $nas_hashlist_with_filename $nas_hashlist_with_filename.$today_date
+	cp $nas_hashlist $nas_hashlist.$today_date
+	cp $nas_hashlist_uniq $nas_hashlist_uniq.$today_date
+}
+
+restore_nas_hashlists(){
+	today_date="$1"
+	echo "### Restoring haslists ###"
+	echo "# Delete temp nas #"
+	rm $nas_hashlist_with_filename
+	rm $nas_hashlist
+	rm $nas_hashlist_uniq
+
+	echo "# Restoring olds nas #"
+	mv $nas_hashlist_with_filename.$today_date $nas_hashlist_with_filename
+	mv $nas_hashlist.$today_date $nas_hashlist
+	mv $nas_hashlist_uniq.$today_date $nas_hashlist_uniq
+}
+
+update_hashfiles_from_sourcefolder(){
+	## Si photos déplacées :
+	# Avant
+	#  f370a6aaaa87714bb13d219f79058549 /path/A/
+	# A faire :
+	# 1. Retirer ligne qui contient f370a6aaaa87714bb13d219f79058549
+	# 2. Ajouter : f370a6aaaa87714bb13d219f79058549  /path/A/B
+
+	while IFS="" read -r p || [ -n "$p" ]
+	do
+		old_file_location=$(grep "$p" $nas_hashlist_with_filename | awk -F"\t" '{print $2}' | xargs)
+		new_file_location=$(grep "$p" $hashlist_with_filename | awk -F"\t" '{print $2}' | xargs)
+		# Validation du sous dossier - Ex : old_file_location=/volume1/photo/Chargement Appareil Photo Val/toto.jpg
+		# Déplacé en : new_file_location=/volume1/photo/Chargement Appareil Photo Val/Noël/toto.jpg
+		# old_album_folder=/volume1/photo/Chargement Appareil Photo Val/Noël
+		old_album_folder=`dirname "$old_file_location"`
+		# old_file_location may not exists if it hasn't been scanned since the uploading
+		if [ ! -z "$old_file_location" ]; then
+			echo_verbose "new_file_location=$new_file_location -- old_file_location=$old_file_location"
+			if [[ "$new_file_location" != *"$old_album_folder"* ]]; then
+					echo_warning "Photo trouvée ailleurs que dans le sous dossier.. "
+					echo_warning "Continue.."
+			else
+				# Remove lines with this hash $p
+				sed -i '/$p/d' $nas_hashlist_with_filename
+			fi
+		fi
+	done < $hashlist
+	# Here $nas_hashlist_with_filename is cleaned with all hashes found on $hashlist
+
+	# New lines are from source_folder so in hashlist_with_filename and hashlist
+	# update nas_hashlist with those file
+	cat $hashlist_with_filename >> $nas_hashlist_with_filename
+	sort $nas_hashlist_with_filename > $nas_hashlist_with_filename
+	cat $nas_hashlist_with_filename | awk '{print $1}' > $nas_hashlist
+	cat $nas_hashlist | sort | uniq > $nas_hashlist_uniq
+
+}
+
 search_missing_photos(){
+	if [ "$SOURCE_MODE" = "nas" ]; then
+		## today_date defined above
+		backup_nas_hashlists $today_date
+		## Update hashfiles :
+		### Add new location (files have probably been moved in order to migrate them)
+		### Remove all files that are in the source_folder/dcim
+		update_hashfiles_from_sourcefolder
+	fi
+
 	echo_verbose "------------- Search files in hashlist that are missing in nas_hashlist -------------"
 	comm -23 $hashlist $nas_hashlist > $missing_hash_photos
+
+	#if [ "$SOURCE_MODE" = "nas" ]; then
+
+	#fi
+	# restore_nas_hashfiles
+	# TODO : do not (backup/)restore because file from source_folder will be moved -- so new location added later
 }
 
 prepare_destination_folder(){
 	#Local/Remote dest preparation :
-	cd /mnt/d/Syno/temp_photos
+	cd "$path_to_tempphoto"
 	mkdir -p "$path_album_name"
 }
 
 copy_missing_filenames(){
-	# Read all missing hash
-		# For each :
-		## - find file associated in XX_hashlist_with_filename.hash
-		## - copy into dedicated folder (to be pushed over synodrive)
-	## -
-
 	dir=`dirname "$copied_hashlist"`
 	album_name=`basename "$dir"`
 
@@ -207,6 +279,18 @@ extract_already_copied_location(){
 		already_copied_file=$(grep "$p" $hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs)
 		nas_file_location=$(grep "$p" $nas_hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs)
 
+		nas_parent_album=${nas_file_location#*/photo/*}
+		nas_parent_album=`dirname "$nas_parent_album"`
+		## TODO
+		# nas_file_location =
+		# nas_parent_album =
+		if [[ "$nas_file_location" == *"$nas_parent_album"* ]]; then
+				# Dans le cas du déplacement d'un fichier depuis le NAS vers le NAS
+				# on ignore
+				echo_verbose "### Ignoring already found ###"
+				continue
+		fi
+		echo_verbose "##$nas_parent_album##  - ##$##"
 		# TODO : gérer plusieurs retours ....
 		echo_found "$already_copied_file : Trouvée - $nas_file_location" >> $logfile
 		# TODO : pour vérifier la taille, le fichier sur le NAS est ... sur le nas ! donc comment connaitre sa taille ?
@@ -263,8 +347,11 @@ while [ $# -gt 0 ]; do
 		-c|--copy)
 			MODE=copy
 			if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
-				echo_error "Synology source is not an available feature."
-				exit -3
+				#echo_error "Synology source is not an available feature."
+				#exit -3
+				SOURCE_MODE="nas"
+			else
+				SOURCE_MODE="pc"
 			fi
 			if [ $REUSE -eq 1 ] && [ $# -lt 2 ] || [ $# -lt 3 ]; then
 				echo '2 paramètres sont nécessaires : Dossier source des photos + Nom de l album de destination (peut être un chemin comme "Noël/Mon Super Noel" mais ne pas oublier d entourer de guillemets.)'
@@ -388,15 +475,15 @@ if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 		found_folder="$source_dcim_folder/Found"
 		# TODO : verify if those files already exists before requesting to delete them
 		if [ ! -d "$copied_folder" ]; then
-			mkdir $copied_folder
+			mkdir "$copied_folder"
 		else
-			if [ $(ls -1 $copied_folder | wc -l) -ne 0 ]; then
+			if [ $(ls -1 "$copied_folder" | wc -l) -ne 0 ]; then
 				echo_warning "Fichier trouvés dans $copied_folder..."
-				ls -l $copied_folder
+				ls -l "$copied_folder"
 				while true; do
 				    read -p "Veux tu nettoyer le dossier $copied_folder?  [Oui/Non]" on
 				    case $on in
-				        [Oo]* )  rm $copied_folder/*  ; break;;
+				        [Oo]* )  rm "$copied_folder"/*  ; break;;
 				        [Nn]* )  break;;
 				        * ) echo "Entrez Oui ou Non";;
 				    esac
@@ -404,15 +491,15 @@ if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 			fi
 		fi
 		if [ ! -d "$found_folder" ]; then
-			mkdir $found_folder
+			mkdir "$found_folder"
 		else
-			if [ $(ls -1 $found_folder | wc -l) -ne 0 ]; then
+			if [ $(ls -1 "$found_folder" | wc -l) -ne 0 ]; then
 				echo_warning "Fichier trouvés dans $found_folder..."
-				ls -l $found_folder
+				ls -l "$found_folder"
 				while true; do
 				    read -p "Veux tu nettoyer le dossier $found_folder?  [Oui/Non]" on
 				    case $on in
-				        [Oo]* )  rm $found_folder/*  ; break;;
+				        [Oo]* )  rm "$found_folder"/*  ; break;;
 				        [Nn]* )  break;;
 				        * ) echo "Entrez Oui ou Non";;
 				    esac

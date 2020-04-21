@@ -15,7 +15,14 @@ xxh_hash_photo3="a09a7a222b94bbdf5618a18dda32e66c"
 
 
 synology_host="synology"
-path_to_sources_test="/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test"
+
+if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
+	path_to_sources_test="/volume1/tools/photos/merge_local_photos_into_nas/sources_test"
+else
+	path_to_sources_test="/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/sources_test"
+fi
+
+
 
 add_photo_to_knowledge_nashashlists(){
 	if [ "$1" == "photo1" ]; then
@@ -41,15 +48,34 @@ add_photo_to_knowledge_nashashlists(){
 }
 
 test_pc(){
-	test1
-	test2
-	test3
+	verify test1
+	verify test2
+	verify test3
 }
 
 test_syno(){
-	test5
-	#test6
-	#test7
+	verify test5
+	verify test6
+	verify test7
+	#verify test8
+	verify test9
+	verify test10
+}
+
+verify(){
+	if "$1" ; then
+			echo_success "$1 success"
+	else
+			echo_error "$1 failed"
+	fi
+}
+
+echo_error(){
+  echo -e "\e[91m----------- ERREUR -----------\n$1\e[0m"
+}
+
+echo_success(){
+  echo -e "\e[32m$1\e[0m"
 }
 
 check_pc_hostname(){
@@ -93,24 +119,7 @@ test1(){
 	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log
 
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
-	if [ ! -f "$local_final_dest_folder/$photo1" ]; then
-		echo "ERRREUR photo1 non trouvée ici : $local_final_dest_folder/$photo1"
-		if [ ! -d "$local_final_dest_folder" ]; then
-			echo "ERRREUR dossier dest n'existe pas : $local_final_dest_folder"
-		else
-			ls -la "$local_final_dest_folder"
-		fi
-		error=1
-	fi
-	if [ ! -f "$local_final_dest_folder/$photo2" ]; then
-		echo "ERRREUR photo2 non trouvée ici : $local_final_dest_folder/$photo2"
-		if [ ! -d "$local_final_dest_folder" ]; then
-			echo "ERRREUR dossier dest n'existe pas : $local_final_dest_folder"
-		else
-			ls -la "$local_final_dest_folder"
-		fi
-		error=1
-	fi
+	verify_tempphoto photo1 photo2
 	# Force crontab pour déplacer au final
 	# TODO
 
@@ -120,6 +129,7 @@ test1(){
 	echo "Result : $error"
 	# Cleanup
 	cleanup
+	return $error
 }
 
 # Copie de 2 nouvelles photos + 1 colision
@@ -167,7 +177,7 @@ test2(){
 	# TODO
 
 	# Vérifie que les photos sont présentes dans le dossier final
-	# TODO
+	verify_tempphoto photo1 photo2
 
 	# Vérifier la maj du nas_hashlist
 	verify_nas_hashlist photo1 photo2
@@ -176,7 +186,7 @@ test2(){
 
 	# Cleanup
 	cleanup
-
+	return $error
 }
 
 # Validation du fichier
@@ -205,30 +215,14 @@ test3(){
 	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log
 
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
-	if [ ! -f "$local_final_dest_folder/$photo1" ]; then
-		echo "ERRREUR photo1 non trouvée ici : $local_final_dest_folder/$photo1"
-		if [ ! -d "$local_final_dest_folder" ]; then
-			echo "ERRREUR dossier dest n'existe pas : $local_final_dest_folder"
-		else
-			ls -la "$local_final_dest_folder"
-		fi
-		error=1
-	fi
-	if [ ! -f "$local_final_dest_folder/$photo2" ]; then
-		echo "ERRREUR photo2 non trouvée ici : $local_final_dest_folder/$photo2"
-		if [ ! -d "$local_final_dest_folder" ]; then
-			echo "ERRREUR dossier dest n'existe pas : $local_final_dest_folder"
-		else
-			ls -la "$local_final_dest_folder"
-		fi
-		error=1
-	fi
+	verify_tempphoto photo1 photo2
 	# Verification du copied_hashlist
 	verify_copied_hashlist photo1 photo2
 
 	echo "Result : $error"
 	# Cleanup
 	cleanup
+	return $error
 }
 
 # TODO !
@@ -239,6 +233,7 @@ test4(){
 
 	# Cleanup
 	cleanup
+	return $error
 }
 
 #simulate on NAS
@@ -248,6 +243,8 @@ test5(){
 # Backup old hashlists
 	backup_nas_hashlists
 
+	error=0
+	echo "## Run script ##"
 	$check_fileexist_syno --verbose --log --nas --short 50
 	# Verifications
 	echo "##### hashlist_with_filename contenu #####"
@@ -259,23 +256,164 @@ test5(){
 
 # Restore hashlists
 	restore_nas_hashlists
+	return $error
 }
 
 # Copy sur NAS
 test6(){
 	echo "## Test 6 ##"
 	check_syno_hostname
+	# Préparer le dossier
+	test_folder="/tmp/test_copy_photos/"
+	path_album_name="Test - 01-01-01"
+	local_final_dest_folder="/volume1/temp_photos/$path_album_name"
+	copied_hashlist="$local_final_dest_folder/copied_hashlist.hash"
+	mkdir -p "$test_folder"
 
+	expected_added_lines_nas_hashlist="$test_folder/expected_added_lines_nas_hashlist.txt"
+	echo "" > $expected_added_lines_nas_hashlist
+
+	photo1=photo1.png
+	photo2=photo2.png
+
+	cp "$path_to_sources_test/$photo1" "$test_folder"
+	cp "$path_to_sources_test/$photo2" "$test_folder"
+
+	# Lancer le script
+	error=0
+	echo "## Run script ##"
 	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
 	# Verifications
+	# Vérifie que les photos sont présentes dans le dossier temp_photos
+	verify_tempphoto photo1 photo2
+	# Vérifier la maj du nas_hashlist
+	verify_nas_hashlist photo1 photo2
 
+	echo "Result : $error"
+	# Cleanup
+	cleanup
+	return $error
 }
 
-# Validation du reuse
+# Validation de la copie avec sous dossier
 test7(){
 	echo "## Test 7 ##"
 	check_syno_hostname
-	$check_fileexist_syno --verbose --reuse --copy "$test_folder" --log
+	# Préparer le dossier
+	test_folder="/tmp/test_copy_photos/"
+	path_album_name="Test/Test - 01-01-01"
+	local_final_dest_folder="/volume1/temp_photos/$path_album_name"
+	copied_hashlist="$local_final_dest_folder/copied_hashlist.hash"
+	mkdir -p "$test_folder"
+
+	expected_added_lines_nas_hashlist="$test_folder/expected_added_lines_nas_hashlist.txt"
+	echo "" > $expected_added_lines_nas_hashlist
+
+	photo1=photo1.png
+	photo2=photo2.png
+
+	cp "$path_to_sources_test/$photo1" "$test_folder"
+	cp "$path_to_sources_test/$photo2" "$test_folder"
+
+	# Lancer le script
+	error=0
+	echo "## Run script ##"
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+	# Verifications
+	# Vérifie que les photos sont présentes dans le dossier temp_photos
+	verify_tempphoto photo1 photo2
+	# Vérifier la maj du nas_hashlist
+	verify_nas_hashlist photo1 photo2
+
+	echo "Result : $error"
+	# Cleanup
+	cleanup
+	return $error
+}
+
+# Validation du reuse
+#test8(){
+#	echo "## Test 8 ##"
+#	check_syno_hostname
+#	error=0
+#	echo "## Run script ##"
+#	$check_fileexist_syno --verbose --reuse --copy "$test_folder" --log
+
+#	return $error
+#}
+
+# Fonction sur le NAS pour tester move_tempphoto_to_photo
+test9(){
+	echo "## Test 9 ##"
+	check_syno_hostname
+	# Préparer le dossier
+	test_folder="/tmp/test_copy_photos/"
+	path_album_name="Test - 01-01-01"
+	local_final_dest_folder="/volume1/temp_photos/$path_album_name"
+	copied_hashlist="$local_final_dest_folder/copied_hashlist.hash"
+	mkdir -p "$test_folder"
+
+	expected_added_lines_nas_hashlist="$test_folder/expected_added_lines_nas_hashlist.txt"
+	echo "" > $expected_added_lines_nas_hashlist
+
+	photo1=photo1.png
+	photo2=photo2.png
+
+	cp "$path_to_sources_test/$photo1" "$test_folder"
+	cp "$path_to_sources_test/$photo2" "$test_folder"
+
+	# Lancer le script
+	error=0
+	echo "## Run check_fileexist_syno : $check_fileexist_syno ##"
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+
+	echo "## Run move_tempphoto_to_photo : $move_tempphoto_to_photo ##"
+	$move_tempphoto_to_photo
+	# Verifications
+	# Vérifie que les photos sont présentes dans le dossier photos
+	verify_photo photo1 photo2
+
+	echo "Result : $error"
+	# Cleanup
+	cleanup
+	return $error
+}
+
+# Fonction sur le NAS pour tester move_tempphoto_to_photo avec sous dossier
+test10(){
+	echo "## Test 10 ##"
+	check_syno_hostname
+	# Préparer le dossier
+	test_folder="/tmp/test_copy_photos/"
+	path_album_name="Test/Test - 01-01-01"
+	local_final_dest_folder="/volume1/temp_photos/$path_album_name"
+	copied_hashlist="$local_final_dest_folder/copied_hashlist.hash"
+	mkdir -p "$test_folder"
+
+	expected_added_lines_nas_hashlist="$test_folder/expected_added_lines_nas_hashlist.txt"
+	echo "" > $expected_added_lines_nas_hashlist
+
+	photo1=photo1.png
+	photo2=photo2.png
+
+	cp "$path_to_sources_test/$photo1" "$test_folder"
+	cp "$path_to_sources_test/$photo2" "$test_folder"
+
+	# Lancer le script
+	error=0
+	echo "## Run check_fileexist_syno : $check_fileexist_syno ##"
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+
+	echo "## Run move_tempphoto_to_photo : $move_tempphoto_to_photo ##"
+	$move_tempphoto_to_photo
+	# Verifications
+	# Vérifie que les photos sont présentes dans le dossier photos
+	verify_photo photo1 photo2
+
+	echo "Result : $error"
+	# Cleanup
+	cleanup
+	return $error
 }
 
 # backup old hashlists
@@ -365,14 +503,14 @@ verify_file_hashlist(){
 	for photo in "$@"
 	do
 		if [ "$photo" == photo1 ]; then
-				found_photo1=`grep "$xxh_hash_photo1" "$hashfile" | grep -c "/volume1/photo/Test - 01-01-01/photo1.png" "$hashfile"`
+				found_photo1=`grep "$xxh_hash_photo1" "$hashfile" | grep -c "/volume1/photo/$path_album_name/photo1.png" "$hashfile"`
 				if [ $found_photo1 -eq 0 ]; then
 					error=1
 					echo "ERROR on $photo"
 					grep "$xxh_hash_photo1" "$hashfile"
 				fi
 		elif [ "$photo" == photo2 ]; then
-				found_photo2=`grep "$xxh_hash_photo2" "$hashfile" | grep -c "/volume1/photo/Test - 01-01-01/photo2.png" "$hashfile"`
+				found_photo2=`grep "$xxh_hash_photo2" "$hashfile" | grep -c "/volume1/photo/$path_album_name/photo2.png" "$hashfile"`
 				if [ $found_photo2 -eq 0 ]; then
 					error=1
 					echo "ERROR on $photo"
@@ -396,6 +534,68 @@ verify_nas_hashlist(){
 	verify_file_hashlist "$nas_hashlist_with_filename" photo1 photo2
 }
 
+verify_tempphoto(){
+	error=0
+	for photo in "$@"
+	do
+		if [ "$photo" == photo1 ]; then
+			if [ ! -f "$local_final_dest_folder/$photo1" ]; then
+				echo "ERRREUR photo1 non trouvée ici : $local_final_dest_folder/$photo1"
+				if [ ! -d "$local_final_dest_folder" ]; then
+					echo "ERRREUR dossier dest n'existe pas : $local_final_dest_folder"
+				else
+					ls -la "$local_final_dest_folder"
+				fi
+				error=1
+			fi
+		elif [ "$photo" == photo2 ]; then
+			if [ ! -f "$local_final_dest_folder/$photo2" ]; then
+				echo "ERRREUR photo2 non trouvée ici : $local_final_dest_folder/$photo2"
+				if [ ! -d "$local_final_dest_folder" ]; then
+					echo "ERRREUR dossier dest n'existe pas : $local_final_dest_folder"
+				else
+					ls -la "$local_final_dest_folder"
+				fi
+				error=1
+			fi
+		#elif  [ "$photo" == photo3 ]; then
+		else
+				echo "ERROR : photo not known...."
+		fi
+	done
+}
+
+verify_photo(){
+	error=0
+	for photo in "$@"
+	do
+		if [ "$photo" == photo1 ]; then
+			if [ ! -f "/volume1/photo/$path_album_name/$photo1" ]; then
+				echo "ERRREUR photo1 non trouvée ici : /volume1/photo/$path_album_name/$photo1"
+				if [ ! -d "/volume1/photo/$path_album_name" ]; then
+					echo "ERRREUR dossier dest n'existe pas : /volume1/photo/$path_album_name"
+				else
+					ls -la "/volume1/photo/$path_album_name"
+				fi
+				error=1
+			fi
+		elif [ "$photo" == photo2 ]; then
+			if [ ! -f "/volume1/photo/$path_album_name/$photo2" ]; then
+				echo "ERRREUR photo2 non trouvée ici : /volume1/photo/$path_album_name/$photo2"
+				if [ ! -d "/volume1/photo/$path_album_name" ]; then
+					echo "ERRREUR dossier dest n'existe pas : /volume1/photo/$path_album_name"
+				else
+					ls -la "/volume1/photo/$path_album_name"
+				fi
+				error=1
+			fi
+		#elif  [ "$photo" == photo3 ]; then
+		else
+				echo "ERROR : photo not known...."
+		fi
+	done
+}
+
 echo_verbose(){
 	if [ $VERBOSE -eq 1 ]; then
 		echo $1
@@ -414,6 +614,7 @@ fi
 path_to_script_folder="$prefix_path_syno_drive/tools/photos/merge_local_photos_into_nas"
 hashfile_location="$path_to_script_folder/hashfiles"
 check_fileexist_syno="$path_to_script_folder/check_fileexist_syno.sh"
+move_tempphoto_to_photo="$path_to_script_folder/move_tempphoto_to_photo.sh"
 
 if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
 	path_to_remote_photo="/volume1/photo"
@@ -431,5 +632,5 @@ fi
 
 for test in "$@"
 do
-	$test
+	verify $test
 done
