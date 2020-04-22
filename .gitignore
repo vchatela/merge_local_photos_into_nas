@@ -1,3 +1,5 @@
 script_logs/*
 hashfiles/*
 docs/*
+!hashfiles/.gitkeep
+!script_logs/.gitkeep
