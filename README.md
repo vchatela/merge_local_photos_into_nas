@@ -1,3 +1,22 @@
+# Fonctionalités 
+## depuis PC
+- [x] Chargement des photos depuis un PC vers le NAS -- uniquement des photos non présentes sur le NAS (*check_fileexist_syno.sh --copy*)
+- [x] Simuler/Afficher quelles photos aurait été chargée -- lesquelles ne sont pas sur le NAS (*check_fileexist_syno.sh --test*)
+- [ ] Réutiliser le nom du dossier de chargement comme nom d'album final (*check_fileexist_syno.sh --reuse*)
+
+## depuis NAS
+- [x] Créer un index de toutes les photos présentes sur le NAS (*check_fileexist_syno.sh --nas*)
+- [x] Rangement des albums chargés depuis le PC avec mise à jour du référentiel (*move_tempphoto_to_photo.sh*)
+
+## depuis PC ou NAS indépendement
+- [x] Afficher les photos dupliquées et leurs emplacements sur le NAS (*check_fileexist_syno.sh --duplicate*)
+- [x] Mettre de côté les photos d'un album qui existent déjà ailleurs sur le NAS (*check_fileexist_syno.sh --move_duplicated*)
+- [ ] Gestion de l'upload et de la gestion des vidéos 
+
+## Tests
+- [x] 10 tests de validation du comportement attendus
+- [ ] tests sur les fonctionnalités reuse, duplicate et move_duplicated
+
 # Architecture
 ![Schéma Global](https://i.postimg.cc/brvmLmbf/merge-photos-into-nas.png)
 ## Pré-Configuration
@@ -91,6 +110,10 @@ Création de 3 fichiers (en environ 2h pour 42k photos)
 0000f3449315e7620a875c32610e0cf0
 00011072d9b6a85caa33f2e8a9d65535
 ...
+# nas_hashlist_duplicated.hash
+0000f3449315e7620a875c32610e0cf0
+00011072d9b6a85caa33f2e8a9d65535
+...
 ```
 #### Fonctionnement sur Serveur
 Création de 2 fichiers :
@@ -108,7 +131,7 @@ a4c3374cb47c8ccb88032a7db564330f
 ### move_tempphoto_to_photo.sh
 Déplacement depuis /temp_photos vers /photos.
 
-Comme il est impossible de savoir si la photo a été totalement envoyée/chargée au moment du lancement du script, on utilisera la fonction de hashage.
+Comme il est impossible de savoir si la photo a été totalement envoyée/chargée au moment du lancement du script, on utilisera la fonction de hashage pour s'assurer de l'ingrité des fichiers présents.
 
 Au moment de l'envoi l'empreinte est rajoutée dans un fichier qui est ajouté dans le dossier temp_photo/$album_name.
 ```
@@ -175,7 +198,6 @@ Toutes les photos déplacées
 ### Test PC
 #### Test 1 : Envoi de 3 photos
 ```
-valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./test_check_fileexist.sh test1
 ## Test 1 ##
 ## Run script ##
 Chargement de l'album : Test - 01-01-01
@@ -193,10 +215,10 @@ Aucune photo déjà trouvée.
 ### Verify NAS Hashlist ###
 Result : 0
 ## Cleanup ##
+test1 success
 ```
 #### Test 2 : Envoi de 3 photos dont 1 déjà présente (fake insertion dans le nas_hashlist)
 ```
-valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./test_check_fileexist.sh test2
 ## Run script ##
 Chargement de l'album : Test - 01-01-01
 Durée : 1 secondes
@@ -212,10 +234,10 @@ Non copiées : 1
 ### Verify NAS Hashlist ###
 Result : 0
 ## Cleanup ##
+test2 success
 ```
 #### Test 3 : Vérification du fichier copied_hashlist utilisé pour s'assurer du téléchargement complet
 ```
-valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./test_check_fileexist.sh test3
 ## Test 3 ##
 ## Run script ##
 Chargement de l'album : Test - 01-01-01
@@ -233,6 +255,7 @@ Aucune photo déjà trouvée.
 Copied Hashlist : /mnt/d/Syno/temp_photos/Test - 01-01-01/copied_hashlist.hash
 Result : 0
 ## Cleanup ##
+test3 success
 ```
 #### Test 4 : Validation de la fonction de test
 ```
@@ -241,7 +264,6 @@ TODO
 ### Test NAS
 #### Test 5 : Création du référentiel (sur seulement 50 éléments)
 ```
-admin@synology:/volume1/tools/photos/xxHash-0.7.3$ /volume1/tools/photos/merge_local_photos_into_nas/test_check_fileexist.sh test5
 ### Backup haslists ###
 Using limit_find_output=50
 ------------- Working on synology -------------
@@ -280,14 +302,85 @@ show only 10
 ### Restoring haslists ###
 # Delete temp #
 # Restoring olds #
+test5 success
 ```
 #### Test 6 : Validation de la copie depuis un dossier du NAS vers un autre dossier du NAS
 ```
+## Test 6 ##
+synology_vc
+## Run script ##
+Using source_dcim_folder=/tmp/test_copy_photos/
+Using path_album_name=Test - 01-01-01
+------------- Working on synology_vc -------------
+source_dcim_folder=/tmp/test_copy_photos/
+------------- Creating Hashfile -------------
+### Backup haslists nas ###
+------------- Search files in hashlist that are missing in nas_hashlist -------------
+------------- Copy missing files on NAS -------------
+Chargement de l'album : Test - 01-01-01
+------------- Search files in hashlist that already exists in nas_hashlist -------------
+------------- Already Copied files Locations -------------
+-------------- Ajout du nouveau Hashlist dans la référence du NAS ------------------
+Ajout dans hashlists
+Copie de temp_hashlist dans album_folder
+Mise à jour du hashlist_uniq
+------------- Creating Uniq Hashfile -------------
+Nettoyage des lignes vides dans les hashfiles
+Triage des hashlists
+Durée : 1 secondes
+## Compte rendu ##
+Copiées : 2
+Non copiées : 0
 
+## Photos copiées ##
+/tmp/test_copy_photos/photo1.png : Copiée - /volume1//temp_photos/Test - 01-01-01/photo1.png
+/tmp/test_copy_photos/photo2.png : Copiée - /volume1//temp_photos/Test - 01-01-01/photo2.png
+## Photos déjà présentes ##
+Aucune photo déjà trouvée.
+
+### Verify NAS Hashlist ###
+Result : 0
+## Cleanup ##
+test6 success
 ```
 #### Test 7 : Equivalent test 6 mais avec une arboresence pour l'album (Noël/2020/Mon Album)
 ```
+## Test 7 ##
+synology_vc
+## Run script ##
+Using source_dcim_folder=/tmp/test_copy_photos/
+Using path_album_name=Test/Test - 01-01-01
+------------- Working on synology_vc -------------
+source_dcim_folder=/tmp/test_copy_photos/
+------------- Creating Hashfile -------------
+### Backup haslists nas ###
+------------- Search files in hashlist that are missing in nas_hashlist -------------
+------------- Copy missing files on NAS -------------
+Chargement de l'album : Test - 01-01-01
+------------- Search files in hashlist that already exists in nas_hashlist -------------
+------------- Already Copied files Locations -------------
+-------------- Ajout du nouveau Hashlist dans la référence du NAS ------------------
+Ajout dans hashlists
+Copie de temp_hashlist dans album_folder
+Mise à jour du hashlist_uniq
+------------- Creating Uniq Hashfile -------------
+Nettoyage des lignes vides dans les hashfiles
+Triage des hashlists
+Durée : 0 secondes
+## Compte rendu ##
+Copiées : 2
+Non copiées : 0
 
+## Photos copiées ##
+/tmp/test_copy_photos/photo1.png : Copiée - /volume1//temp_photos/Test/Test - 01-01-01/photo1.png
+/tmp/test_copy_photos/photo2.png : Copiée - /volume1//temp_photos/Test/Test - 01-01-01/photo2.png
+## Photos déjà présentes ##
+Aucune photo déjà trouvée.
+
+### Verify NAS Hashlist ###
+Result : 0
+## Cleanup ##
+test7 success
 ```
 
 #### Test 8 : TODO -- Validation du reuse / une fois feature terminée
@@ -296,11 +389,92 @@ show only 10
 ```
 #### Test 9 : Validation du script move_tempphoto_to_photo pour album simple
 ```
+## Test 9 ##
+synology_vc
+## Run check_fileexist_syno : /volume1//tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh ##
+Using source_dcim_folder=/tmp/test_copy_photos/
+Using path_album_name=Test - 01-01-01
+------------- Working on synology_vc -------------
+source_dcim_folder=/tmp/test_copy_photos/
+------------- Creating Hashfile -------------
+### Backup haslists nas ###
+------------- Search files in hashlist that are missing in nas_hashlist -------------
+------------- Copy missing files on NAS -------------
+Chargement de l'album : Test - 01-01-01
+------------- Search files in hashlist that already exists in nas_hashlist -------------
+------------- Already Copied files Locations -------------
+-------------- Ajout du nouveau Hashlist dans la référence du NAS ------------------
+Ajout dans hashlists
+Copie de temp_hashlist dans album_folder
+Mise à jour du hashlist_uniq
+------------- Creating Uniq Hashfile -------------
+Nettoyage des lignes vides dans les hashfiles
+Triage des hashlists
+Durée : 0 secondes
+## Compte rendu ##
+Copiées : 2
+Non copiées : 0
 
+## Photos copiées ##
+/tmp/test_copy_photos/photo1.png : Copiée - /volume1//temp_photos/Test - 01-01-01/photo1.png
+/tmp/test_copy_photos/photo2.png : Copiée - /volume1//temp_photos/Test - 01-01-01/photo2.png
+## Photos déjà présentes ##
+Aucune photo déjà trouvée.
+
+## Run move_tempphoto_to_photo : /volume1//tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh ##
+Exécution du : Wed Apr 22 22:19:46 CEST 2020
+album_copied_hashlist=/volume1/temp_photos/Test - 01-01-01/copied_hashlist.hash
+-----
+Album : Test - 01-01-01
+Toutes les photos déplacées
+album_copied_hashlist=
+Result : 0
+## Cleanup ##
+test9 success
 ```
 #### Test 10 : Validation du script move_tempphoto_to_photo pour arboresence album
 ```
+## Test 10 ##
+synology_vc
+## Run check_fileexist_syno : /volume1//tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh ##
+Using source_dcim_folder=/tmp/test_copy_photos/
+Using path_album_name=Test/Test - 01-01-01
+------------- Working on synology_vc -------------
+source_dcim_folder=/tmp/test_copy_photos/
+------------- Creating Hashfile -------------
+### Backup haslists nas ###
+------------- Search files in hashlist that are missing in nas_hashlist -------------
+------------- Copy missing files on NAS -------------
+Chargement de l'album : Test - 01-01-01
+------------- Search files in hashlist that already exists in nas_hashlist -------------
+------------- Already Copied files Locations -------------
+-------------- Ajout du nouveau Hashlist dans la référence du NAS ------------------
+Ajout dans hashlists
+Copie de temp_hashlist dans album_folder
+Mise à jour du hashlist_uniq
+------------- Creating Uniq Hashfile -------------
+Nettoyage des lignes vides dans les hashfiles
+Triage des hashlists
+Durée : 1 secondes
+## Compte rendu ##
+Copiées : 2
+Non copiées : 0
 
+## Photos copiées ##
+/tmp/test_copy_photos/photo1.png : Copiée - /volume1//temp_photos/Test/Test - 01-01-01/photo1.png
+/tmp/test_copy_photos/photo2.png : Copiée - /volume1//temp_photos/Test/Test - 01-01-01/photo2.png
+## Photos déjà présentes ##
+Aucune photo déjà trouvée.
+
+## Run move_tempphoto_to_photo : /volume1//tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh ##
+Exécution du : Wed Apr 22 22:19:59 CEST 2020
+album_copied_hashlist=/volume1/temp_photos/Test/Test - 01-01-01/copied_hashlist.hash
+-----
+Album : Test/Test - 01-01-01
+Toutes les photos déplacées
+Result : 0
+## Cleanup ##
+test10 success
 ```
 
 # Notes techniques

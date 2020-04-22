@@ -121,6 +121,17 @@ make_uniq_hashfile_folder(){
 	fi
 }
 
+make_duplicated_hashfile(){
+	echo_verbose "------------- Creating Duplicated Hashfile -------------"
+	if [ "$1" == "nas" ]; then
+		uniq -d $nas_hashlist > $nas_hashlist_duplicated
+	else
+		echo_error "make_duplicated_hashfile not available outside of the NAS."
+		exit -2
+	fi
+	
+}
+
 backup_nas_hashlists(){
 	today_date="$1"
 	echo "### Backup haslists nas ###"
@@ -312,7 +323,6 @@ search_duplicated_files(){
 	# Extract duplicated hashes
 	echo_verbose "------------- Show missing files -------------"
 	echo_bold "## Photos dupliquées ##" >> $logfile
-	duplicated_hashes=$(uniq -d $nas_hashlist)
 	while IFS="" read -r duplicated_hash || [ -n "$duplicated_hash" ]
 	do
 		((count_duplicated++))
@@ -330,7 +340,64 @@ search_duplicated_files(){
 		done <<< $duplicated_photos
 		echo "--------" >> $logfile 
 		#((count_total_instance_duplicated+=$instance_duplicated))
-	done <<< $duplicated_hashes
+	done <<< $nas_hashlist_duplicated
+}
+
+move_duplicated_files(){
+	# Move files found elsewhere and move them into Duplicated folder
+	echo_verbose "------------- Move duplicated files -------------"
+	photos_in_album=$(grep "$remote_full_path_album" $nas_hashlist_with_filename)
+	# remote_full_path_album=/volume1/photo/Mariage Matt&Flo - 05-09-19/Eglise
+	moved_photos=0
+	if [ "$SOURCE_MODE" != "nas" ]; then
+		echo_warning "read-only mode -- cannot move files !"
+	fi
+	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
+	do
+		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs )
+		if grep -q "$photo_hash" "$nas_hashlist_duplicated" ; then
+			# move to DUPLICATED folder
+			photos_duplicated=$(grep "$photo_hash" $nas_hashlist_with_filename)
+			while IFS="" read -r photo || [ -n "$photo" ]
+			do
+				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs )
+				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
+				if [ "$to_move" -ne 0 ]; then
+					if [ "$SOURCE_MODE" = "nas" ]; then
+						# do mv
+						echo "mv $photo_path to $duplicated_folder"
+					else 
+						echo "mv $photo_path to $duplicated_folder"
+					fi
+					((moved_photos++))
+					# mv "$photo_path" "$duplicated_folder"
+				fi
+			done <<< $photos_duplicated
+		fi
+	done <<< $photos_in_album
+	echo "Duplicated photo moved : $moved_photos"
+	#See if we remove those file from nas_hashfiles to make it more closer from real state
+}
+
+create_folder_or_keep_clean(){
+	# TODO : verify if those files already exists before requesting to delete them
+	folder="$1"
+	if [ ! -d "$folder" ]; then
+		mkdir "$folder"
+	else
+		if [ $(ls -1 "$folder" | wc -l) -ne 0 ]; then
+			echo_warning "Fichier trouvés dans $folder..."
+			ls -l "$folder"
+			while true; do
+				read -p "Veux tu nettoyer le dossier $folder?  [Oui/Non]" on
+				case $on in
+					[Oo]* )  rm "$folder"/*  ; break;;
+					[Nn]* )  break;;
+					* ) echo "Entrez Oui ou Non";;
+				esac
+			done
+		fi
+	fi
 }
 
 ############################### MAIN
@@ -341,22 +408,21 @@ REUSE=0
 force_logs=0
 synology_host="synology"
 
+if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
+	SOURCE_MODE="nas"
+else
+	SOURCE_MODE="pc"
+fi
+
 while [ $# -gt 0 ]; do
 	case "$1" in
 		-h|"-?"|--help)
 			shift
-			echo "usage: $0 [--copy source album_name] [--test source album_name] [--duplicate] [--nas] [--log] [--verbose] [--short]"
+			echo "usage: $0 [--copy source album_name] [--test source album_name] [--duplicate] [--move_duplicated] [--nas] [--log] [--verbose] [--short]"
 			exit 0
 			;;
 		-c|--copy)
 			MODE=copy
-			if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
-				#echo_error "Synology source is not an available feature."
-				#exit -3
-				SOURCE_MODE="nas"
-			else
-				SOURCE_MODE="pc"
-			fi
 			if [ $REUSE -eq 1 ] && [ $# -lt 2 ] || [ $# -lt 3 ]; then
 				echo '2 paramètres sont nécessaires : Dossier source des photos + Nom de l album de destination (peut être un chemin comme "Noël/Mon Super Noel" mais ne pas oublier d entourer de guillemets.)'
 				echo 'Example : check_fileexist_syno.sh --copy /tmp/Photos a envoyer/ "Noël/Super Album - 25-12-19/"'
@@ -445,6 +511,19 @@ while [ $# -gt 0 ]; do
 			count_total_instance_duplicated=0
 			shift;
 			;;
+		--move_duplicated)
+			MODE=move_duplicated
+			if [ $# -lt 2 ]; then
+				echo '1 paramètre est nécessaire : Nom de l album pour lequel les photos dupliquées seront mises de côté' 
+				echo 'Example : check_fileexist_syno.sh --move_duplicated "Noël/Super Album - 25-12-19/"'
+				exit -1
+			else
+				path_album_name=$2
+				echo_verbose "Using path_album_name=$path_album_name"
+			fi
+			shift;
+			shift;
+			;;
 		*)
 			echo_error "Error: unknown option '$1'"
 			exit 1
@@ -469,7 +548,14 @@ hashfile_location="$path_to_script_folder/hashfiles"
 nas_hashlist="$hashfile_location/nas_hashlist.hash" #used for duplicated feature
 nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
 nas_hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
-
+nas_hashlist_duplicated="$hashfile_location/nas_hashlist_duplicated.hash"
+if [ "$MODE" = move_duplicated ]; then 
+	remote_full_path_album="$path_to_remote_photo/$path_album_name"
+	duplicated_folder="$remote_full_path_album/Duplicated"
+	if [ "$SOURCE_MODE" = nas ]; then 
+		create_folder_or_keep_clean "$duplicated_folder"
+	fi 
+fi
 if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 	## Checks
 	if [ ! -d "$source_dcim_folder" ]; then
@@ -478,45 +564,13 @@ if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 	else
 		copied_folder="$source_dcim_folder/Copied"
 		found_folder="$source_dcim_folder/Found"
-		# TODO : verify if those files already exists before requesting to delete them
-		if [ ! -d "$copied_folder" ]; then
-			mkdir "$copied_folder"
-		else
-			if [ $(ls -1 "$copied_folder" | wc -l) -ne 0 ]; then
-				echo_warning "Fichier trouvés dans $copied_folder..."
-				ls -l "$copied_folder"
-				while true; do
-				    read -p "Veux tu nettoyer le dossier $copied_folder?  [Oui/Non]" on
-				    case $on in
-				        [Oo]* )  rm "$copied_folder"/*  ; break;;
-				        [Nn]* )  break;;
-				        * ) echo "Entrez Oui ou Non";;
-				    esac
-				done
-			fi
-		fi
-		if [ ! -d "$found_folder" ]; then
-			mkdir "$found_folder"
-		else
-			if [ $(ls -1 "$found_folder" | wc -l) -ne 0 ]; then
-				echo_warning "Fichier trouvés dans $found_folder..."
-				ls -l "$found_folder"
-				while true; do
-				    read -p "Veux tu nettoyer le dossier $found_folder?  [Oui/Non]" on
-				    case $on in
-				        [Oo]* )  rm "$found_folder"/*  ; break;;
-				        [Nn]* )  break;;
-				        * ) echo "Entrez Oui ou Non";;
-				    esac
-				done
-			fi
-		fi
+		create_folder_or_keep_clean "$copied_folder"
+		create_folder_or_keep_clean "$found_folder"
 	fi
 	# Local prefix can be on /mnt/d or already on the NAS
 	local_full_path_album="$path_to_tempphoto/$path_album_name"
 	remote_full_path_album="$path_to_remote_photo/$path_album_name"
 	copied_hashlist="$local_full_path_album/copied_hashlist.hash"
-
 
 	if [ -d "$local_full_path_album" ]; then
 		echo_warning "Le dossier $local_full_path_album existe déjà. Les photos seront ajoutées"
@@ -550,12 +604,15 @@ prepare_logs
 if [ "$MODE" = duplicate ]; then
 	search_duplicated_files
 	echo "count_duplicated=$count_duplicated"
+elif [ "$MODE" = move_duplicated ]; then 
+	move_duplicated_files
 else 
 	# Create hash_list for NAS or Computer
 	echo_verbose "source_dcim_folder=$source_dcim_folder"
 	make_hasfile_folder
 	if [ "$MODE" = nas ]; then
 		make_uniq_hashfile_folder
+		make_duplicated_hashfile
 	elif [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 		prepare_destination_folder
 		search_missing_photos
