@@ -1,16 +1,16 @@
 # Fonctionalités 
-## depuis PC
-- [x] Chargement des photos depuis un PC vers le NAS -- uniquement des photos non présentes sur le NAS (*check_fileexist_syno.sh --copy*)
-- [x] Simuler/Afficher quelles photos aurait été chargée -- lesquelles ne sont pas sur le NAS (*check_fileexist_syno.sh --test*)
-- [ ] Réutiliser le nom du dossier de chargement comme nom d'album final (*check_fileexist_syno.sh --reuse*)
+## Depuis PC
+- [x] Chargement des photos depuis un PC vers le NAS -- uniquement des photos non présentes sur le NAS : *check_fileexist_syno.sh --copy*
+- [x] Simuler/Afficher quelles photos aurait été chargée -- lesquelles ne sont pas sur le NAS : *check_fileexist_syno.sh --test*
+- [ ] Réutiliser le nom du dossier de chargement comme nom d'album final : *check_fileexist_syno.sh --reuse*
 
-## depuis NAS
-- [x] Créer un index de toutes les photos présentes sur le NAS (*check_fileexist_syno.sh --nas*)
-- [x] Rangement des albums chargés depuis le PC avec mise à jour du référentiel (*move_tempphoto_to_photo.sh*)
+## Depuis NAS
+- [x] Créer un index de toutes les photos présentes sur le NAS : *check_fileexist_syno.sh --nas*
+- [x] Rangement des albums chargés depuis le PC avec mise à jour du référentiel : *move_tempphoto_to_photo.sh*
 
-## depuis PC ou NAS indépendement
-- [x] Afficher les photos dupliquées et leurs emplacements sur le NAS (*check_fileexist_syno.sh --duplicate*)
-- [x] Mettre de côté les photos d'un album qui existent déjà ailleurs sur le NAS (*check_fileexist_syno.sh --move_duplicated*)
+## Depuis PC ou NAS indépendement
+- [x] Afficher les photos dupliquées et leurs emplacements sur le NAS : *check_fileexist_syno.sh --duplicate*
+- [x] Mettre de côté les photos d'un album qui existent déjà ailleurs sur le NAS : *check_fileexist_syno.sh --move_duplicated*
 - [ ] Gestion de l'upload et de la gestion des vidéos 
 
 ## Tests
