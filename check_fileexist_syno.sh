@@ -1,10 +1,6 @@
 ## TODO :
-## - Option to use either remote/NAS folder or local/pc folder (source_on_nas OR source_on_pc + dest_on_nas)
 ## - Why some found are not found in FOUND --- to be reproduced
 ## - manage multiple returns of already-copied
-## - finish --reuse feature // validate behavior
-## Comment faire du fait du comm -2 pour traiter les fichiers qu'on trouve déjà ??
-##    => il faudrait (temporairement) retirer les fichiers du dossier en cours (/volume1/photo/Album...) des fichiers nas_hashlist*
 
 displaytime() {
 	local T=$1
@@ -85,8 +81,8 @@ show_logs(){
 		exit 0
 	elif [ "$MODE" = duplicate ]; then
 		# TODO
-		echo "Photos dupliquées : TODO"
-		echo "Photos totales dupliquées : TODO"
+		echo "Photos dupliquées : $count_duplicated"
+		echo "Photos totales dupliquées : $count_total_instance_duplicated"
 	fi
 	if [ $force_logs -eq 1 ]; then
 			cat $logfile
@@ -311,22 +307,30 @@ extract_already_copied_location(){
 	fi
 }
 
+
 search_duplicated_files(){
-	# Read files in NAS
-		# For each :
-		## - if more than 1 occurence of hash
-	## show the filenames
+	# Extract duplicated hashes
 	echo_verbose "------------- Show missing files -------------"
-	echo_bold "## Photos déjà présentes ##" >> $logfile
-	while IFS="" read -r p || [ -n "$p" ]
+	echo_bold "## Photos dupliquées ##" >> $logfile
+	duplicated_hashes=$(uniq -d $nas_hashlist)
+	while IFS="" read -r duplicated_hash || [ -n "$duplicated_hash" ]
 	do
-		instance_duplicated=$(grep -c "$p" $nas_hashlist)
-		if [ $instance_duplicated -gt 1 ]; then
-			grep "$p" $hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs
-			((count_duplicated++))
-			((count_total_instance_duplicated+=$instance_duplicated))
-		fi
-	done < $nas_hashlist_uniq
+		((count_duplicated++))
+		count_total_local_photo_duplicated=0
+		# 001d21360effa628a34c10e62fd2749e          /volume1/photo/Léon/2015/Février 2015/20150131-141311.JPG
+		# 001d21360effa628a34c10e62fd2749e          /volume1/photo/Sauvegarde Caro/LEON/14mois/20150131-141311.JPG
+	  	duplicated_photos=$(grep "$duplicated_hash" $nas_hashlist_with_filename)
+		echo "Photo (#$count_duplicated) : $duplicated_hash" >> $logfile
+		while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
+		do
+			((count_total_instance_duplicated++))
+			((count_total_local_photo_duplicated++))
+			photo=$(echo "$photo_hash_line" | awk -F"\t" '{print $2}' | xargs)
+			echo "#$count_total_local_photo_duplicated - $photo" >> $logfile
+		done <<< $duplicated_photos
+		echo "--------" >> $logfile 
+		#((count_total_instance_duplicated+=$instance_duplicated))
+	done <<< $duplicated_hashes
 }
 
 ############################### MAIN
@@ -390,47 +394,47 @@ while [ $# -gt 0 ]; do
 			shift;
 			shift;
 			;;
-			-n|--nas)
-				check_syno_hostname
-				MODE=nas
-				shift;
-				;;
-			-l|--log)
-				force_logs=1
-				shift;
-				;;
-			-s|--short)
-				SHORT=1
-				if [ $# -lt 2 ]; then
-					echo_error '1 paramètre est nécessaire pour limiter les résultats'
-					echo 'Example : check_fileexist_syno.sh --nas --short 100'
-					exit -1
-				else
-					limit_find_output=$2
-					echo_verbose "Using limit_find_output=$limit_find_output"
-				fi
-				shift;
-				shift;
-				;;
-			-r|--reuse)
-				check_syno_hostname
-				REUSE=1
-				album_correct=0
-				# ex : pwd=/volume1/photo/Chargement Appareil Photo/Album/Noël 25-12-18/
-				# il faut garder Album/Noël 25-12-18/
-				current_pwd=`pwd`
-				path_album_name=`current_pwd#*/photo/*/`
-				while [ $album_correct -eq 0 ]; do
-				    read -p "Confirmes tu que l'album est : $path_album_name?  [Oui/Non]" on
-				    case $on in
-				        [Oo]* )  album_correct=1;;
-				        [Nn]* )  echo "Erreur : merci de retirer --reuse / -r" ; exit -2;;
-				        * ) echo "Entrez Oui ou Non";;
-				    esac
-				done
-				echo_verbose "Using path_album_name=$path_album_name"
-				shift;
-				;;
+		-n|--nas)
+			check_syno_hostname
+			MODE=nas
+			shift;
+			;;
+		-l|--log)
+			force_logs=1
+			shift;
+			;;
+		-s|--short)
+			SHORT=1
+			if [ $# -lt 2 ]; then
+				echo_error '1 paramètre est nécessaire pour limiter les résultats'
+				echo 'Example : check_fileexist_syno.sh --nas --short 100'
+				exit -1
+			else
+				limit_find_output=$2
+				echo_verbose "Using limit_find_output=$limit_find_output"
+			fi
+			shift;
+			shift;
+			;;
+		-r|--reuse)
+			check_syno_hostname
+			REUSE=1
+			album_correct=0
+			# ex : pwd=/volume1/photo/Chargement Appareil Photo/Album/Noël 25-12-18/
+			# il faut garder Album/Noël 25-12-18/
+			current_pwd=`pwd`
+			path_album_name=`current_pwd#*/photo/*/`
+			while [ $album_correct -eq 0 ]; do
+				read -p "Confirmes tu que l'album est : $path_album_name?  [Oui/Non]" on
+				case $on in
+					[Oo]* )  album_correct=1;;
+					[Nn]* )  echo "Erreur : merci de retirer --reuse / -r" ; exit -2;;
+					* ) echo "Entrez Oui ou Non";;
+				esac
+			done
+			echo_verbose "Using path_album_name=$path_album_name"
+			shift;
+			;;
 		-v|--verbose)
 			VERBOSE=1
 			shift;
@@ -439,9 +443,7 @@ while [ $# -gt 0 ]; do
 			MODE=duplicate
 			count_duplicated=0
 			count_total_instance_duplicated=0
-			search_duplicated_files
-			# TODO : show log -- which file - where etc.
-			exit 0
+			shift;
 			;;
 		*)
 			echo_error "Error: unknown option '$1'"
@@ -464,6 +466,9 @@ path_to_remote_photo="/volume1/photo"
 
 log_folder="$path_to_script_folder/script_logs/"
 hashfile_location="$path_to_script_folder/hashfiles"
+nas_hashlist="$hashfile_location/nas_hashlist.hash" #used for duplicated feature
+nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
+nas_hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
 
 if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 	## Checks
@@ -519,9 +524,6 @@ if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 
 	hashlist_with_filename="$hashfile_location/dcim_hashlist_with_filename.hash"
 	hashlist="$hashfile_location/dcim_hashlist.hash"
-	nas_hashlist="$hashfile_location/nas_hashlist.hash"
-	nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
-	nas_hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
 	already_copied_photos_hashlist="$hashfile_location/already_copied_photos_hashlist.hash"
 	missing_hash_photos="$hashfile_location/missing_hash_photos.hash"
 else if [ "$MODE" = nas ]; then
@@ -529,16 +531,13 @@ else if [ "$MODE" = nas ]; then
 		hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
 		hashlist="$hashfile_location/nas_hashlist.hash"
 		hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
-	else
-		echo_error "Mode=$MODE unrecognized"
-		exit -2
 	fi
 
 fi
 
 
 today_date=`date +"%FT%H%M%S"`
-logfile=$log_folder/$today_date.log
+logfile="$log_folder/$today_date-$MODE.log"
 temp_new_hash_for_nas_hashlist=$log_folder/.tmp_nas_hashlist_$today_date.log
 count_copied=0
 count_found=0
@@ -546,29 +545,35 @@ count_missing=0
 
 echo_verbose "------------- Working on $HOSTNAME -------------"
 prepare_logs
-# Create hash_list for NAS or Computer
-echo_verbose "source_dcim_folder=$source_dcim_folder"
-make_hasfile_folder
-# If NAS then create uniq list
-
 
 # If computer then compare and copy missings to new dest folder
-if [ "$MODE" = nas ]; then
-	make_uniq_hashfile_folder
-elif [ "$MODE" = copy ] || [ "$MODE" = test ]; then
-
-	prepare_destination_folder
-	search_missing_photos
-	if [ "$MODE" = copy ]; then
-		copy_missing_filenames
-		show_location_already_copied_photos_on_nas
-		update_nas_hashlist_with_copied_files
+if [ "$MODE" = duplicate ]; then
+	search_duplicated_files
+	echo "count_duplicated=$count_duplicated"
+else 
+	# Create hash_list for NAS or Computer
+	echo_verbose "source_dcim_folder=$source_dcim_folder"
+	make_hasfile_folder
+	if [ "$MODE" = nas ]; then
+		make_uniq_hashfile_folder
+	elif [ "$MODE" = copy ] || [ "$MODE" = test ]; then
+		prepare_destination_folder
+		search_missing_photos
+		if [ "$MODE" = copy ]; then
+			copy_missing_filenames
+			show_location_already_copied_photos_on_nas
+			update_nas_hashlist_with_copied_files
 		elif [ "$MODE" = test ]; then
 			show_location_already_copied_photos_on_nas
-		elif [ "$MODE" = duplicate ]; then
-			continue
+		else 
+			echo_error "Mode=$MODE unrecognized"
+			exit -2
+		fi
 	fi
 fi
+
+# Clean old logs 
+find "$log_folder" -type f -name "*$MODE.log" -ctime +15 -print #-delete
 
 end=`date +%s`
 runtime=$((end-start))

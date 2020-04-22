@@ -116,7 +116,7 @@ for d in /volume1/temp_photos/*/ ; do
   	done <<< $copied_hash_found
 done
 
-# TODO : Clean all empty folders under /volume1/temp_photos
+# Clean all empty folders under /volume1/temp_photos
 for dir in /volume1/temp_photos/*/ ; do
   if [ "$dir" == "/volume1/temp_photos/@eaDir/" ]; then
     continue

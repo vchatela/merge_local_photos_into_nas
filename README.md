@@ -127,7 +127,7 @@ aa7b076cbac4bceb352cfa3d084be34f        /volume1/photo/Test - 01-01-01/photo2.pn
 ```
 /volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh
 ```
-3.1.2 Déplacer photos (toutes les 1h)
+#### Déplacer photos (toutes les 1h)
 ```
 /volume1/tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh
 ```
@@ -238,7 +238,8 @@ Result : 0
 ```
 TODO
 ```
-### Test NAS (test 5 seulement)
+### Test NAS
+#### Test 5 : Création du référentiel (sur seulement 50 éléments)
 ```
 admin@synology:/volume1/tools/photos/xxHash-0.7.3$ /volume1/tools/photos/merge_local_photos_into_nas/test_check_fileexist.sh test5
 ### Backup haslists ###
@@ -279,6 +280,27 @@ show only 10
 ### Restoring haslists ###
 # Delete temp #
 # Restoring olds #
+```
+#### Test 6 : Validation de la copie depuis un dossier du NAS vers un autre dossier du NAS
+```
+
+```
+#### Test 7 : Equivalent test 6 mais avec une arboresence pour l'album (Noël/2020/Mon Album)
+```
+
+```
+
+#### Test 8 : TODO -- Validation du reuse / une fois feature terminée
+```
+
+```
+#### Test 9 : Validation du script move_tempphoto_to_photo pour album simple
+```
+
+```
+#### Test 10 : Validation du script move_tempphoto_to_photo pour arboresence album
+```
+
 ```
 
 # Notes techniques
