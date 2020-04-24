@@ -440,7 +440,26 @@ request_reindex_if_photos_moved(){
 	fi
 }
 
-############################### MAIN
+clean_non_persistent_hashfiles(){
+	if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
+		# Clean calculated hashes
+		safe_remove "$hashlist_with_filename"
+		safe_remove "$hashlist"
+		safe_remove "$hashlist_uniq"
+		safe_remove "$already_copied_photos_hashlist"
+		safe_remove "$missing_hash_photos"
+	fi
+}
+
+safe_remove(){
+	if [[ "$1" == *"nas_hashlist"* ]]; then
+		echo_error "SAFE-REMOVE : do not clean $1 because contains 'nas'"
+	else 
+		rm "$1"
+	fi
+}
+
+############################### MAIN ###############################
 start=`date +%s`
 VERBOSE=0
 SHORT=0
@@ -634,7 +653,6 @@ else if [ "$MODE" = nas ]; then
 		hashlist="$hashfile_location/nas_hashlist.hash"
 		hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
 	fi
-
 fi
 
 
@@ -676,6 +694,7 @@ else
 			echo_error "Mode=$MODE unrecognized"
 			exit -2
 		fi
+		clean_non_persistent_hashfiles
 	fi
 fi
 
