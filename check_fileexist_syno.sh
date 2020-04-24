@@ -114,7 +114,7 @@ make_hasfile_folder(){
 
 make_uniq_hashfile_folder(){
 	echo_verbose "------------- Creating Uniq Hashfile -------------"
-	if [ "$SOURCE_MODE" = nas ]; then
+	if [ "$SOURCE_MODE" = "nas" ]; then
 		cat $nas_hashlist | sort | uniq > $nas_hashlist_uniq
 	else
 		cat $hashlist | sort | uniq > $hashlist_uniq
@@ -123,7 +123,7 @@ make_uniq_hashfile_folder(){
 
 make_duplicated_hashfile(){
 	echo_verbose "------------- Creating Duplicated Hashfile -------------"
-	if [ "$SOURCE_MODE" = nas ]; then
+	if [ "$SOURCE_MODE" = "nas" ]; then
 		uniq -d $nas_hashlist > $nas_hashlist_duplicated
 	else
 		echo_error "make_duplicated_hashfile not available outside of the NAS."
@@ -240,7 +240,7 @@ copy_missing_filenames(){
 			echo_copied "$missing_file : Copiée - $local_full_path_album/$missing_short_file" >> $logfile
 			cp "$missing_file" "$local_full_path_album"
 			mv "$missing_file" "$copied_folder"
-			if [ "$SOURCE_MODE" = nas ]; then
+			if [ "$SOURCE_MODE" = "nas" ]; then
 				syno_reindex_needed=1
 			fi
 			((count_copied++))
@@ -316,7 +316,7 @@ extract_already_copied_location(){
 			# fi
 			((count_found++))
 			mv "$already_copied_file" "$found_folder/"
-			if [ "$SOURCE_MODE" = nas ]; then
+			if [ "$SOURCE_MODE" = "nas" ]; then
 				syno_reindex_needed=1
 			fi
 		done < "$already_copied_photos_hashlist"
@@ -413,31 +413,28 @@ request_reindex_if_photos_moved(){
 	if [ $BLOCK_REINDEX -eq 0 ]; then 
 		reindexed=0
 		previous_reindex_needed="0"
-		if [ "$MODE" = nas ]; then 
+		if [ "$SOURCE_MODE" = "nas" ]; then 
 			syno_reindex_need_file=/volume1/photo/syno_reindex_need_file
 			previous_reindex_needed=$(cat $syno_reindex_need_file)
-		fi
-		
-		if [ $syno_reindex_needed -eq 1 ] || [ "$previous_reindex_needed" = "1" ]; then
-			if [ "$MODE" != nas ] && [ $syno_reindex_needed -eq 1 ]; then 
-				echo_error "reindex needed but MODE=$MODE .. Unexpected !"
-			fi
-			
-			current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-			# Request reindex
-			while true; do
-				read -p "Il faut réindexer le NAS, as tu terminé le rangement pour lancer la réindexation ?  [Oui/Non]" on
-				case $on in
-					[Oo]* )  echo_verbose "Reindéxation lancée : $current_dir/syno_reindex.sh" ; $current_dir/syno_reindex.sh ; reindexed=1; echo "0" > $syno_reindex_need_file ; break;;
-					[Nn]* )  break;;
-					* ) echo "Entrez Oui ou Non";;
-				esac
-			done
 
-			if [ $reindexed -eq 0 ] && [ "$previous_reindex_needed" != "1" ]; then 
-				# Stocker la réindexation
-				echo_verbose "Saving reindexation into $syno_reindex_need_file"
-				echo "1" > $syno_reindex_need_file
+			if [ $syno_reindex_needed -eq 1 ] || [ "$previous_reindex_needed" = "1" ]; then
+				
+				current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+				# Request reindex
+				while true; do
+					read -p "Il faut réindexer le NAS, as tu terminé le rangement pour lancer la réindexation ?  [Oui/Non]" on
+					case $on in
+						[Oo]* )  echo_verbose "Reindéxation lancée : $current_dir/syno_reindex.sh" ; $current_dir/syno_reindex.sh ; reindexed=1; echo "0" > $syno_reindex_need_file ; break;;
+						[Nn]* )  break;;
+						* ) echo "Entrez Oui ou Non";;
+					esac
+				done
+
+				if [ $reindexed -eq 0 ] && [ "$previous_reindex_needed" != "1" ]; then 
+					# Stocker la réindexation
+					echo_verbose "Saving reindexation into $syno_reindex_need_file"
+					echo "1" > $syno_reindex_need_file
+				fi
 			fi
 		fi	
 	fi
@@ -601,7 +598,7 @@ nas_hashlist_duplicated="$hashfile_location/nas_hashlist_duplicated.hash"
 if [ "$MODE" = move_duplicated ]; then 
 	remote_full_path_album="$path_to_remote_photo/$path_album_name"
 	duplicated_folder="$remote_full_path_album/Duplicated"
-	if [ "$SOURCE_MODE" = nas ]; then 
+	if [ "$SOURCE_MODE" = "nas" ]; then 
 		create_folder_or_keep_clean "$duplicated_folder"
 	fi 
 fi

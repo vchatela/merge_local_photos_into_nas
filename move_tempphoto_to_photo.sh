@@ -133,6 +133,7 @@ if [ $error -eq 1 ]; then
   echo_error "Merci de corriger."
   exit -1
 fi
+
 if [ $permission_added -eq 1 ]; then
     echo -e "\n----------- Permissions à donner -----------"
     echo "-- Fichier des permissions : $album_photo_rights_to_be_reviewed"
@@ -140,10 +141,17 @@ if [ $permission_added -eq 1 ]; then
     exit 2
 fi
 
-# Force syno to reindex 
+# Force syno to reindex if proceed 
 if [ $proceed -eq 1 ]; then 
   if [ -f "$reindex_script" ]; then 
+    echo "Reindexation started"
     $reindex_script
+    syno_reindex_need_file=/volume1/photo/syno_reindex_need_file
+		previous_reindex_needed=$(cat $syno_reindex_need_file)
+    if  [ "$previous_reindex_needed" != "0" ]; then
+      echo "Reseting reindexation"
+      echo "0" > $syno_reindex_need_file
+    fi 
   else 
     echo_error "Reindex script not found !"
     exit -1

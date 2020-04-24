@@ -496,3 +496,10 @@ On laissera le script faire la maj et la réindexation en suivant
 /volume1/tools/photos/merge_local_photos_into_nas/exiftool_rename_pictures.sh
 /volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --nas
 ```
+
+# Réindexation
+Deux moments où les photos sont déplcaes : --copy ou --move_duplicated
+## Depuis le PC
+Seul le --copy bouge des fichiers mais ils sont déplacés dans /temp_photo du coup on s'appuiera sur le move_tempphoto_to_photo.sh qui lui réindexera une fois les photos réellement déplacées.
+## Depuis le NAS
+Soit on réindexe à la fin directement, soit on sauvegarde dans *$syno_reindex_need_file* pour redemander plus tard.  
