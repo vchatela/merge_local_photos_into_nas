@@ -7,6 +7,8 @@
 ## Depuis NAS
 - [x] Créer un index de toutes les photos présentes sur le NAS : *check_fileexist_syno.sh --nas*
 - [x] Rangement des albums chargés depuis le PC avec mise à jour du référentiel : *move_tempphoto_to_photo.sh*
+- [x] Réindéxation pour éviter les incohérences sur Photos Stations : *syno_reindex.sh*
+- [x] Possibilité d'éviter la réindéxation (par ex si plusieurs opérations) : *check_fileexist_syno.sh --block-reindex*
 
 ## Depuis PC ou NAS indépendement
 - [x] Afficher les photos dupliquées et leurs emplacements sur le NAS : *check_fileexist_syno.sh --duplicate*
