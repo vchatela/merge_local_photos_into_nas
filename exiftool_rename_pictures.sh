@@ -23,9 +23,5 @@ if [ ! $result -eq 0 ]; then
 	exit $?
 fi
 
-## relance l'indexation
-sudo synoservicecfg --enable synoindexd
-## relance la création des miniatures
-sudo synoservicecfg --enable synomkthumbd
-##relance la conversion photo/video
-sudo synoservicecfg --enable synomkflvd
+current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+sudo $current_dir/syno_reindex.sh

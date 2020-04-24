@@ -116,7 +116,7 @@ test1(){
 	# Lancer le script
 	error=0
 	echo "## Run script ##"
-	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log --block-reindex
 
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
 	verify_tempphoto photo1 photo2
@@ -156,7 +156,7 @@ test2(){
 	# Lancer le script
 	error=0
 	echo "## Run script ##"
-	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log --block-reindex
 
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
 	if [ ! -f "$local_final_dest_folder/$photo1" ]; then
@@ -212,7 +212,7 @@ test3(){
 	# Lancer le script
 	error=0
 	echo "## Run script ##"
-	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --copy "$test_folder" "$path_album_name" --log --block-reindex
 
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
 	verify_tempphoto photo1 photo2
@@ -245,7 +245,7 @@ test5(){
 
 	error=0
 	echo "## Run script ##"
-	$check_fileexist_syno --verbose --log --nas --short 50
+	$check_fileexist_syno --verbose --log --nas --short 50 ## --block-reindex     NOT needed because no move
 	# Verifications
 	echo "##### hashlist_with_filename contenu #####"
 	echo "show only 10"
@@ -282,7 +282,7 @@ test6(){
 	# Lancer le script
 	error=0
 	echo "## Run script ##"
-	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log --block-reindex
 	# Verifications
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
 	verify_tempphoto photo1 photo2
@@ -318,7 +318,7 @@ test7(){
 	# Lancer le script
 	error=0
 	echo "## Run script ##"
-	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log --block-reindex
 	# Verifications
 	# Vérifie que les photos sont présentes dans le dossier temp_photos
 	verify_tempphoto photo1 photo2
@@ -365,7 +365,7 @@ test9(){
 	# Lancer le script
 	error=0
 	echo "## Run check_fileexist_syno : $check_fileexist_syno ##"
-	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log --block-reindex
 
 	echo "## Run move_tempphoto_to_photo : $move_tempphoto_to_photo ##"
 	$move_tempphoto_to_photo
@@ -402,7 +402,7 @@ test10(){
 	# Lancer le script
 	error=0
 	echo "## Run check_fileexist_syno : $check_fileexist_syno ##"
-	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log
+	$check_fileexist_syno --verbose --copy "$test_folder" "$path_album_name" --log --block-reindex
 
 	echo "## Run move_tempphoto_to_photo : $move_tempphoto_to_photo ##"
 	$move_tempphoto_to_photo

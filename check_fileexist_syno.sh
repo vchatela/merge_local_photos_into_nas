@@ -114,7 +114,7 @@ make_hasfile_folder(){
 
 make_uniq_hashfile_folder(){
 	echo_verbose "------------- Creating Uniq Hashfile -------------"
-	if [ "$1" == "nas" ]; then
+	if [ "$SOURCE_MODE" = nas ]; then
 		cat $nas_hashlist | sort | uniq > $nas_hashlist_uniq
 	else
 		cat $hashlist | sort | uniq > $hashlist_uniq
@@ -123,7 +123,7 @@ make_uniq_hashfile_folder(){
 
 make_duplicated_hashfile(){
 	echo_verbose "------------- Creating Duplicated Hashfile -------------"
-	if [ "$1" == "nas" ]; then
+	if [ "$SOURCE_MODE" = nas ]; then
 		uniq -d $nas_hashlist > $nas_hashlist_duplicated
 	else
 		echo_error "make_duplicated_hashfile not available outside of the NAS."
@@ -240,6 +240,9 @@ copy_missing_filenames(){
 			echo_copied "$missing_file : Copiée - $local_full_path_album/$missing_short_file" >> $logfile
 			cp "$missing_file" "$local_full_path_album"
 			mv "$missing_file" "$copied_folder"
+			if [ "$SOURCE_MODE" = nas ]; then
+				syno_reindex_needed=1
+			fi
 			((count_copied++))
 			#prepare for update_nas_hashlist_with_copied_files : which file in which final dest folder etc.
 			# ex to insert : f370a6aaaa87714bb13d219f79058549  ./DSC_2876.JPG
@@ -260,7 +263,7 @@ update_nas_hashlist_with_copied_files(){
 	rm -f "$temp_new_hash_for_nas_hashlist"
 
 	echo_verbose "Mise à jour du hashlist_uniq"
-	make_uniq_hashfile_folder nas
+	make_uniq_hashfile_folder
 
 	echo_verbose "Nettoyage des lignes vides dans les hashfiles"
 	sed -i '/^$/d' $nas_hashlist_with_filename
@@ -272,7 +275,7 @@ update_nas_hashlist_with_copied_files(){
 	sort -o $nas_hashlist $nas_hashlist
 }
 
-show_location_already_copied_photos_on_nas(){
+show_and_move_location_already_copied_photos_on_nas(){
 	echo_verbose "------------- Search files in hashlist that already exists in nas_hashlist -------------"
 	comm -12 $hashlist $nas_hashlist > $already_copied_photos_hashlist
 	extract_already_copied_location
@@ -281,40 +284,45 @@ show_location_already_copied_photos_on_nas(){
 extract_already_copied_location(){
 	echo_verbose "------------- Already Copied files Locations -------------"
 	echo_bold "## Photos déjà présentes ##" >> $logfile
-	while IFS="" read -r p || [ -n "$p" ]
-	do
-		already_copied_file=$(grep "$p" $hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs)
-		nas_file_location=$(grep "$p" $nas_hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs)
+	if [ -s "$already_copied_photos_hashlist" ]; then 
+		while IFS="" read -r p || [ -n "$p" ]
+		do
+			already_copied_file=$(grep "$p" $hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs)
+			nas_file_location=$(grep "$p" $nas_hashlist_with_filename | awk -F"\t" '{print $2}'  | xargs)
 
-		nas_parent_album=${nas_file_location#*/photo/*}
-		nas_parent_album=`dirname "$nas_parent_album"`
-		## TODO
-		# nas_file_location =
-		# nas_parent_album =
-		if [[ "$nas_file_location" == *"$nas_parent_album"* ]]; then
-				# Dans le cas du déplacement d'un fichier depuis le NAS vers le NAS
-				# on ignore
-				echo_verbose "### Ignoring already found ###"
-				continue
+			nas_parent_album=${nas_file_location#*/photo/*}
+			nas_parent_album=`dirname "$nas_parent_album"`
+			## TODO
+			# nas_file_location =
+			# nas_parent_album =
+			if [[ "$nas_file_location" == *"$nas_parent_album"* ]]; then
+					# Dans le cas du déplacement d'un fichier depuis le NAS vers le NAS
+					# on ignore
+					echo_verbose "### Ignoring already found ###"
+					continue
+			fi
+			echo_verbose "##$nas_parent_album##  - ##$##"
+			# TODO : gérer plusieurs retours ....
+			echo_found "$already_copied_file : Trouvée - $nas_file_location" >> $logfile
+			# TODO : pour vérifier la taille, le fichier sur le NAS est ... sur le nas ! donc comment connaitre sa taille ?
+			# Option 1 : la création nas_hashlist donne la taille du fichier en 3ème colonne
+			# Option 2 : le script move_tempphoto fait la comparaison car il est exécuté sur le NAS  --
+					# Comparaison en locale : si même taille alors on va dire qu'il est forcément en double => INUTILE : car contourne ce qu'on veut faire via FOUND/ pour ne pas envoyer
+			# => Option 1 pas le choix !
+			# if [[ $(stat -c%s "$already_copied_file") -ne $(stat -c%s "$nas_file_location") ]];then
+			# 		echo_verbose "Même hash mais pas la même taille des fichiers ... " >> $logfile
+			# else
+			# 		echo_verbose "Même hash et même taille de fichier -- semble vraiment identique." >> $logfile
+			# fi
+			((count_found++))
+			mv "$already_copied_file" "$found_folder/"
+			if [ "$SOURCE_MODE" = nas ]; then
+				syno_reindex_needed=1
+			fi
+		done < "$already_copied_photos_hashlist"
+		if [ $count_found -eq 0 ]; then
+			echo_copied "Aucune photo déjà trouvée." >> $logfile
 		fi
-		echo_verbose "##$nas_parent_album##  - ##$##"
-		# TODO : gérer plusieurs retours ....
-		echo_found "$already_copied_file : Trouvée - $nas_file_location" >> $logfile
-		# TODO : pour vérifier la taille, le fichier sur le NAS est ... sur le nas ! donc comment connaitre sa taille ?
-		# Option 1 : la création nas_hashlist donne la taille du fichier en 3ème colonne
-		# Option 2 : le script move_tempphoto fait la comparaison car il est exécuté sur le NAS  --
-				# Comparaison en locale : si même taille alors on va dire qu'il est forcément en double => INUTILE : car contourne ce qu'on veut faire via FOUND/ pour ne pas envoyer
-		# => Option 1 pas le choix !
-		# if [[ $(stat -c%s "$already_copied_file") -ne $(stat -c%s "$nas_file_location") ]];then
-		# 		echo_verbose "Même hash mais pas la même taille des fichiers ... " >> $logfile
-		# else
-		# 		echo_verbose "Même hash et même taille de fichier -- semble vraiment identique." >> $logfile
-		# fi
-		((count_found++))
-		mv "$already_copied_file" "$found_folder/"
-	done < $already_copied_photos_hashlist
-	if [ $count_found -eq 0 ]; then
-		echo_copied "Aucune photo déjà trouvée." >> $logfile
 	fi
 }
 
@@ -366,6 +374,7 @@ move_duplicated_files(){
 					if [ "$SOURCE_MODE" = "nas" ]; then
 						# do mv
 						mv "$photo_path" "$duplicated_folder/"
+						syno_reindex_needed=1
 					else 
 						echo "Simulate move from $photo_path to $duplicated_folder"
 					fi
@@ -399,13 +408,50 @@ create_folder_or_keep_clean(){
 	fi
 }
 
+request_reindex_if_photos_moved(){
+
+	if [ $BLOCK_REINDEX -eq 0 ]; then 
+		reindexed=0
+		previous_reindex_needed="0"
+		if [ "$MODE" = nas ]; then 
+			syno_reindex_need_file=/volume1/photo/syno_reindex_need_file
+			previous_reindex_needed=$(cat $syno_reindex_need_file)
+		fi
+		
+		if [ $syno_reindex_needed -eq 1 ] || [ "$previous_reindex_needed" = "1" ]; then
+			if [ "$MODE" != nas ] && [ $syno_reindex_needed -eq 1 ]; then 
+				echo_error "reindex needed but MODE=$MODE .. Unexpected !"
+			fi
+			
+			current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+			# Request reindex
+			while true; do
+				read -p "Il faut réindexer le NAS, as tu terminé le rangement pour lancer la réindexation ?  [Oui/Non]" on
+				case $on in
+					[Oo]* )  echo_verbose "Reindéxation lancée : $current_dir/syno_reindex.sh" ; $current_dir/syno_reindex.sh ; reindexed=1; echo "0" > $syno_reindex_need_file ; break;;
+					[Nn]* )  break;;
+					* ) echo "Entrez Oui ou Non";;
+				esac
+			done
+
+			if [ $reindexed -eq 0 ] && [ "$previous_reindex_needed" != "1" ]; then 
+				# Stocker la réindexation
+				echo_verbose "Saving reindexation into $syno_reindex_need_file"
+				echo "1" > $syno_reindex_need_file
+			fi
+		fi	
+	fi
+}
+
 ############################### MAIN
 start=`date +%s`
 VERBOSE=0
 SHORT=0
 REUSE=0
+BLOCK_REINDEX=0
 force_logs=0
 synology_host="synology"
+syno_reindex_needed=0
 
 if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
 	SOURCE_MODE="nas"
@@ -417,8 +463,12 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		-h|"-?"|--help)
 			shift
-			echo "usage: $0 [--copy source album_name] [--test source album_name] [--duplicate] [--move_duplicated] [--nas] [--log] [--verbose] [--short]"
+			echo "usage: $0 [--block-reindex] [--copy source album_name] [--duplicate] [--log] [--move_duplicated] [--nas] [--reuse] [--short] [--test source album_name] [--verbose] "
 			exit 0
+			;;
+		-b|--block-reindex)
+			BLOCK_REINDEX=1
+			shift;
 			;;
 		-c|--copy)
 			MODE=copy
@@ -443,19 +493,26 @@ while [ $# -gt 0 ]; do
 			fi
 			shift;
 			;;
-		-t|--test)
-			MODE=test
-			if [ $# -lt 3 ]; then
-				echo '2 paramètres sont nécessaires : Dossier source des photos + Nom de l album de destination (peut être un chemin comme "Noël/Mon Super Noel" mais ne pas oublier d entourer de guillemets.)'
-				echo 'Example : check_fileexist_syno.sh --copy /tmp/Photos a envoyer/ "Noël/Super Album - 25-12-19/"'
+		-d|--duplicate)
+			MODE=duplicate
+			count_duplicated=0
+			count_total_instance_duplicated=0
+			shift;
+			;;
+		-l|--log)
+			force_logs=1
+			shift;
+			;;
+		--move_duplicated)
+			MODE=move_duplicated
+			if [ $# -lt 2 ]; then
+				echo '1 paramètre est nécessaire : Nom de l album pour lequel les photos dupliquées seront mises de côté' 
+				echo 'Example : check_fileexist_syno.sh --move_duplicated "Noël/Super Album - 25-12-19/"'
 				exit -1
 			else
-				source_dcim_folder=$2
-				echo_verbose "Using source_dcim_folder=$source_dcim_folder"
-				path_album_name=$3
+				path_album_name=$2
 				echo_verbose "Using path_album_name=$path_album_name"
 			fi
-			shift;
 			shift;
 			shift;
 			;;
@@ -463,24 +520,7 @@ while [ $# -gt 0 ]; do
 			check_syno_hostname
 			MODE=nas
 			shift;
-			;;
-		-l|--log)
-			force_logs=1
-			shift;
-			;;
-		-s|--short)
-			SHORT=1
-			if [ $# -lt 2 ]; then
-				echo_error '1 paramètre est nécessaire pour limiter les résultats'
-				echo 'Example : check_fileexist_syno.sh --nas --short 100'
-				exit -1
-			else
-				limit_find_output=$2
-				echo_verbose "Using limit_find_output=$limit_find_output"
-			fi
-			shift;
-			shift;
-			;;
+			;;	
 		-r|--reuse)
 			check_syno_hostname
 			REUSE=1
@@ -500,27 +540,37 @@ while [ $# -gt 0 ]; do
 			echo_verbose "Using path_album_name=$path_album_name"
 			shift;
 			;;
-		-v|--verbose)
-			VERBOSE=1
-			shift;
-			;;
-		-d|--duplicate)
-			MODE=duplicate
-			count_duplicated=0
-			count_total_instance_duplicated=0
-			shift;
-			;;
-		--move_duplicated)
-			MODE=move_duplicated
+		-s|--short)
+			SHORT=1
 			if [ $# -lt 2 ]; then
-				echo '1 paramètre est nécessaire : Nom de l album pour lequel les photos dupliquées seront mises de côté' 
-				echo 'Example : check_fileexist_syno.sh --move_duplicated "Noël/Super Album - 25-12-19/"'
+				echo_error '1 paramètre est nécessaire pour limiter les résultats'
+				echo 'Example : check_fileexist_syno.sh --nas --short 100'
 				exit -1
 			else
-				path_album_name=$2
+				limit_find_output=$2
+				echo_verbose "Using limit_find_output=$limit_find_output"
+			fi
+			shift;
+			shift;
+			;;
+		-t|--test)
+			MODE=test
+			if [ $# -lt 3 ]; then
+				echo '2 paramètres sont nécessaires : Dossier source des photos + Nom de l album de destination (peut être un chemin comme "Noël/Mon Super Noel" mais ne pas oublier d entourer de guillemets.)'
+				echo 'Example : check_fileexist_syno.sh --copy /tmp/Photos a envoyer/ "Noël/Super Album - 25-12-19/"'
+				exit -1
+			else
+				source_dcim_folder=$2
+				echo_verbose "Using source_dcim_folder=$source_dcim_folder"
+				path_album_name=$3
 				echo_verbose "Using path_album_name=$path_album_name"
 			fi
 			shift;
+			shift;
+			shift;
+			;;
+		-v|--verbose)
+			VERBOSE=1
 			shift;
 			;;
 		*)
@@ -577,6 +627,7 @@ if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 
 	hashlist_with_filename="$hashfile_location/dcim_hashlist_with_filename.hash"
 	hashlist="$hashfile_location/dcim_hashlist.hash"
+	hashlist_uniq="$hashfile_location/dcim_hashlist_uniq.hash"
 	already_copied_photos_hashlist="$hashfile_location/already_copied_photos_hashlist.hash"
 	missing_hash_photos="$hashfile_location/missing_hash_photos.hash"
 else if [ "$MODE" = nas ]; then
@@ -605,6 +656,7 @@ if [ "$MODE" = duplicate ]; then
 	echo "count_duplicated=$count_duplicated"
 elif [ "$MODE" = move_duplicated ]; then 
 	move_duplicated_files
+	request_reindex_if_photos_moved
 else 
 	# Create hash_list for NAS or Computer
 	echo_verbose "source_dcim_folder=$source_dcim_folder"
@@ -617,10 +669,11 @@ else
 		search_missing_photos
 		if [ "$MODE" = copy ]; then
 			copy_missing_filenames
-			show_location_already_copied_photos_on_nas
+			show_and_move_location_already_copied_photos_on_nas
 			update_nas_hashlist_with_copied_files
+			request_reindex_if_photos_moved
 		elif [ "$MODE" = test ]; then
-			show_location_already_copied_photos_on_nas
+			show_and_move_location_already_copied_photos_on_nas
 		else 
 			echo_error "Mode=$MODE unrecognized"
 			exit -2
