@@ -479,7 +479,7 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		-h|"-?"|--help)
 			shift
-			echo "usage: $0 [--block-reindex] [--copy source album_name] [--duplicate] [--log] [--move_duplicated] [--nas] [--reuse] [--short] [--test source album_name] [--verbose] "
+			echo "usage: $0 [--block-reindex] [--clean_duplicated] [--copy source album_name] [--duplicate] [--log] [--move_duplicated] [--nas] [--reuse] [--short] [--test source album_name] [--verbose] "
 			exit 0
 			;;
 		-b|--block-reindex)
@@ -537,6 +537,19 @@ while [ $# -gt 0 ]; do
 			MODE=nas
 			shift;
 			;;	
+		--clean_duplicated)
+			MODE=clean_duplicated
+			if [ $# -lt 2 ]; then
+				echo '1 paramètre est nécessaire : Nom de l album de référence pour lequel les photos qui existent ailleurs seront mises de côté' 
+				echo 'Example : check_fileexist_syno.sh --clean_duplicated "Noël/Super Album - 25-12-19/"'
+				exit -1
+			else
+				path_album_name=$2
+				echo_verbose "Using path_album_name=$path_album_name"
+			fi
+			shift;
+			shift;
+			;;
 		-r|--reuse)
 			check_syno_hostname
 			REUSE=1
