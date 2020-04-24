@@ -8,6 +8,10 @@ date=`date`
 album_photo_rights_to_be_reviewed=/volume1/photo/album_photo_rights_to_be_reviewed.txt
 error=0
 permission_added=0
+proceed=0
+
+current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+reindex_script=$current_dir/test_check_fileexist.sh
 
 echo_success(){
   echo -e "\e[32m$1\e[0m"
@@ -100,6 +104,7 @@ for d in /volume1/temp_photos/*/ ; do
               ### Move the files
               # echo "Déplacement de : $local_file"
               mv "$dir/$local_file" "$local_file_fullpath"
+              proceed=1
 
             done < $album_copied_hashlist
             echo_success "Toutes les photos déplacées"
@@ -133,4 +138,14 @@ if [ $permission_added -eq 1 ]; then
     echo "-- Fichier des permissions : $album_photo_rights_to_be_reviewed"
     cat $album_photo_rights_to_be_reviewed
     exit 2
+fi
+
+# Force syno to reindex 
+if [ $proceed -eq 1 ]; then 
+  if [ -f "$reindex_script" ]; then 
+    $reindex_script
+  else 
+    echo_error "Reindex script not found !"
+    exit -1
+  fi
 fi

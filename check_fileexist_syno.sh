@@ -365,12 +365,11 @@ move_duplicated_files(){
 				if [ "$to_move" -ne 0 ]; then
 					if [ "$SOURCE_MODE" = "nas" ]; then
 						# do mv
-						echo "mv $photo_path to $duplicated_folder"
+						mv "$photo_path" "$duplicated_folder/"
 					else 
-						echo "mv $photo_path to $duplicated_folder"
+						echo "Simulate move from $photo_path to $duplicated_folder"
 					fi
 					((moved_photos++))
-					# mv "$photo_path" "$duplicated_folder"
 				fi
 			done <<< $photos_duplicated
 		fi
