@@ -9,6 +9,7 @@ album_photo_rights_to_be_reviewed=/volume1/photo/album_photo_rights_to_be_review
 error=0
 permission_added=0
 proceed=0
+block_reindex=0
 
 current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 reindex_script=$current_dir/test_check_fileexist.sh
@@ -142,18 +143,25 @@ if [ $permission_added -eq 1 ]; then
 fi
 
 # Force syno to reindex if proceed 
+syno_reindex_need_file=/volume1/photo/syno_reindex_need_file
+previous_reindex_needed=$(cat $syno_reindex_need_file)
 if [ $proceed -eq 1 ]; then 
-  if [ -f "$reindex_script" ]; then 
-    echo "Reindexation started"
-    $reindex_script
-    syno_reindex_need_file=/volume1/photo/syno_reindex_need_file
-		previous_reindex_needed=$(cat $syno_reindex_need_file)
-    if  [ "$previous_reindex_needed" != "0" ]; then
-      echo "Reseting reindexation"
-      echo "0" > $syno_reindex_need_file
-    fi 
+  if [ $block_reindex -eq 0 ];then 
+    if [ -f "$reindex_script" ]; then 
+      echo "Reindexation started"
+      $reindex_script
+      if  [ "$previous_reindex_needed" != "0" ]; then
+        echo "Reseting reindexation"
+        echo "0" > $syno_reindex_need_file
+      fi 
+    else 
+      echo_error "Reindex script not found !"
+      exit -1
+    fi
   else 
-    echo_error "Reindex script not found !"
-    exit -1
+    if  [ "$previous_reindex_needed" != "1" ]; then
+      echo "Saving reindexation needed"
+      echo "1" > $syno_reindex_need_file
+    fi
   fi
 fi

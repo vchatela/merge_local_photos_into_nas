@@ -426,13 +426,13 @@ backup_nas_hashlists(){
 	cp "$nas_hashlist_with_filename" "$nas_hashlist_with_filename.$today_date"
 	cp "$nas_hashlist" "$nas_hashlist.$today_date"
 	cp "$nas_hashlist_uniq" "$nas_hashlist_uniq.$today_date"
+	cp "$nas_hashlist_duplicated" "$nas_hashlist_duplicated.$today_date"
 }
 
 backup_hashlists(){
 	echo "### Backup haslists ###"
 	cp "$hashlist_with_filename" "$hashlist_with_filename.$today_date"
 	cp "$hashlist" "$hashlist.$today_date"
-	cp "$hashlist_uniq" "$hashlist_uniq.$today_date"
 }
 
 # restore old hashlists
@@ -441,12 +441,10 @@ restore_hashlists(){
 	echo "# Delete temp #"
 	rm "$hashlist_with_filename"
 	rm "$hashlist"
-	rm "$hashlist_uniq"
 
 	echo "# Restoring olds #"
 	mv "$hashlist_with_filename.$today_date" "$hashlist_with_filename"
 	mv "$hashlist.$today_date" "$hashlist"
-	mv "$hashlist_uniq.$today_date" "$hashlist_uniq"
 }
 
 restore_nas_hashlists(){
@@ -455,15 +453,27 @@ restore_nas_hashlists(){
 	rm "$nas_hashlist_with_filename"
 	rm "$nas_hashlist"
 	rm "$nas_hashlist_uniq"
+	rm "$nas_hashlist_duplicated"
 
 	echo "# Restoring olds nas #"
 	mv "$nas_hashlist_with_filename.$today_date" "$nas_hashlist_with_filename"
 	mv "$nas_hashlist.$today_date" "$nas_hashlist"
 	mv "$nas_hashlist_uniq.$today_date" "$nas_hashlist_uniq"
+	mv "$nas_hashlist_duplicated.$today_date" "$nas_hashlist_duplicated"
 }
 
 # Nettoyage du test
 cleanup(){
+	if [ $wait_cleanup -eq 1 ] || ([ $wait_cleanup_if_error -eq 1 ] && [$error -eq 1]); then
+		while true; do
+		    read -p "Cleanup en pause.. Ready ? [Oui/Non]" on
+		    case $on in
+		        [Oo]* )  break;;
+		        [Nn]* )  echo "En attente.."; sleep 10 ; break;;
+		        * ) echo "Entrez Oui ou Non";;
+		    esac
+		done
+	fi
 	echo "## Cleanup ##"
 	## 1. Nettoyage dossiers test_folder et local_final_dest_folder
 	rm -rf "$local_final_dest_folder"
@@ -482,12 +492,19 @@ cleanup(){
 
 	sed -i "/^$xxh_hash_photo3/d" "$nas_hashlist"
 	sed -i "/^$xxh_hash_photo3/d" "$nas_hashlist_with_filename"
+	sed -i "/^$xxh_hash_photo3/d" "$nas_hashlist_duplicated"
+	sed -i "/^$xxh_hash_photo3/d" "$nas_hashlist_uniq"
 
 	sed -i "/^$xxh_hash_photo1/d" "$nas_hashlist"
 	sed -i "/^$xxh_hash_photo1/d" "$nas_hashlist_with_filename"
+	sed -i "/^$xxh_hash_photo1/d" "$nas_hashlist_duplicated"
+	sed -i "/^$xxh_hash_photo1/d" "$nas_hashlist_uniq"
 
 	sed -i "/^$xxh_hash_photo2/d" "$nas_hashlist"
 	sed -i "/^$xxh_hash_photo2/d" "$nas_hashlist_with_filename"
+	sed -i "/^$xxh_hash_photo2/d" "$nas_hashlist_duplicated"
+	sed -i "/^$xxh_hash_photo2/d" "$nas_hashlist_uniq"
+
 	found=`grep -c "$xxh_hash_photo3" "$nas_hashlist_with_filename" || grep "$xxh_hash_photo1" "$nas_hashlist_with_filename" || grep "$xxh_hash_photo2" "$nas_hashlist_with_filename"`
 	if [ $found -ne 0 ]; then
 		echo "ERROR : Hashes found in nas_hashlist_with_filename .."
@@ -606,8 +623,10 @@ echo_verbose(){
 	fi
 }
 
-VERBOSE=0
+VERBOSE=1
 clean_all=1
+wait_cleanup=0
+wait_cleanup_if_error=0
 today_date=`date +"%FT%H%M%S"`
 
 # if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
@@ -621,17 +640,17 @@ hashfile_location="$path_to_script_folder/hashfiles"
 check_fileexist_syno="$path_to_script_folder/check_fileexist_syno.sh"
 move_tempphoto_to_photo="$path_to_script_folder/move_tempphoto_to_photo.sh"
 
+nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
+nas_hashlist="$hashfile_location/nas_hashlist.hash"
+nas_hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
+nas_hashlist_duplicated="$hashfile_location/nas_hashlist_duplicated.hash"
+
 if [[ "$HOSTNAME" == *"$synology_host"* ]]; then
 	path_to_remote_photo="/volume1/photo"
 	source_dcim_folder="$path_to_remote_photo"
-	nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
-	nas_hashlist="$hashfile_location/nas_hashlist.hash"
-	nas_hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
 else
 	hashlist_with_filename="$hashfile_location/dcim_hashlist_with_filename.hash"
 	hashlist="$hashfile_location/dcim_hashlist.hash"
-	nas_hashlist="$hashfile_location/nas_hashlist.hash"
-	nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
 fi
 
 

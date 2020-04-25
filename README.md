@@ -12,14 +12,19 @@
 
 ## Depuis PC ou NAS indépendement
 - [x] Afficher les photos dupliquées et leurs emplacements sur le NAS : *check_fileexist_syno.sh --duplicate*
-- [x] Mettre de côté les photos d'un album qui existent déjà ailleurs sur le NAS : *check_fileexist_syno.sh --move_duplicated*
+- [x] Pour un album donné, si une des photos existe dans un autre album elle est mise de côté : *check_fileexist_syno.sh --move_duplicated*
+- [x] Pour un album donné, si une des photos existe dans un autre album c'est la photo de l'autre album qui est mise de côté : *check_fileexist_syno.sh --clean_duplicated*
 - [ ] Gestion de l'upload et de la gestion des vidéos 
 
 ## Tests
 - [x] 10 tests de validation du comportement attendus
-- [ ] tests sur les fonctionnalités reuse, duplicate et move_duplicated
+- [ ] tests sur les fonctionnalités reuse, duplicate, clean_duplicated et move_duplicated
 
-# Architecture
+## Exemples 
+Cf Utilisations (sous Architecture)
+Détails pour --clean_duplicated et --move_duplicated en fin.
+
+# Architecture nécessaire
 ![Schéma Global](https://i.postimg.cc/brvmLmbf/merge-photos-into-nas.png)
 ## Pré-Configuration
 ### NAS - Dossier partagés sur Synology Drive
@@ -156,12 +161,14 @@ aa7b076cbac4bceb352cfa3d084be34f        /volume1/photo/Test - 01-01-01/photo2.pn
 ```
 /volume1/tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh
 ```
-# Utilisations      
+# Utilisations  
+## Feature : --nas    
 Création de l'indexation sur le NAS
 ```
 admin@synology:~$ /volume1/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --nas
 ```
-Envoi vers l'album 1
+## Feature : --copy
+Envoi de l'album 1 en local
 ```
 valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ ./clean_photos.sh && /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --copy /tmp/test_copy_photos/ "Mon album 1" --log
 Chargement de l'album : Mon album 1
@@ -176,11 +183,57 @@ Non copiées : 0
 ## Photos déjà présentes ##
 Aucune photo déjà trouvée.
 ```
+## Feature : --test
 Simulation de l'envoi pour détecter les photos déjà présentes
 ```
 valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ /mnt/d/Syno/tools/photos/merge_local_photos_into_nas/check_fileexist_syno.sh --test /tmp/test_copy_photos/ "Mon album 1" --log
 ...
 ```
+
+## Feature : --move_duplicated
+Avant 
+Album1 		Album2 			Album3
+-----		-----			----
+Photo1		Photo2			Photo3
+Photo4		Photo4 			Photo4 
+Photo5		Photo6			Photo5
+
+
+Actions :
+Photo3 n'existe pas ailleurs elle ne bouge pas
+Photo4 existe ailleurs elle bouge dans /duplicated
+Photo5 existe ailleurs elle bouge dans /duplicated
+Après
+Album1 		Album2 			Album3
+-----		-----			----
+Photo1		Photo2			Photo3
+Photo4		Photo4 			/duplicated/Photo4 
+Photo5		Photo6			/duplicated/Photo5
+
+## Feature : --clean_duplicated
+Avant 
+Album1 		Album2 			Album3
+-----		-----			----
+Photo1		Photo2			Photo3
+Photo4		Photo4 			Photo4 
+Photo5		Photo6			Photo5
+
+Actions :
+Photo3 n'existe pas ailleurs -- rien de fait
+Photo4 existe dans Album1 et Album2 : on les déplace dans /duplicated de l'album source
+Photo4 existe dans Album1 : on la déplace dans /duplicated de l'album source
+
+Après 
+Album1 		Album2 			Album3
+-----		-----			----
+Photo1		Photo2			Photo3
+							Photo4 
+			Photo6			Photo5
+							/duplicated/Album1/Photo4
+							/duplicated/Album2/Photo4
+							/duplicated/Album1/Photo5
+
+## Script déplacement
 Tâche automatique de rangement des photos sur le NAS
 ```
 admin@synology:~$ /volume1/tools/photos/merge_local_photos_into_nas/move_tempphoto_to_photo.sh

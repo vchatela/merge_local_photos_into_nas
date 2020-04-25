@@ -123,21 +123,16 @@ make_uniq_hashfile_folder(){
 
 make_duplicated_hashfile(){
 	echo_verbose "------------- Creating Duplicated Hashfile -------------"
-	if [ "$SOURCE_MODE" = "nas" ]; then
-		uniq -d "$nas_hashlist" > "$nas_hashlist_duplicated"
-	else
-		echo_error "make_duplicated_hashfile not available outside of the NAS."
-		exit -2
-	fi
-	
+	uniq -d "$nas_hashlist" > "$nas_hashlist_duplicated"
 }
 
 backup_nas_hashlists(){
 	today_date="$1"
 	echo "### Backup haslists nas ###"
-	cp "$nas_hashlist"_with_filename "$nas_hashlist_with_filename.$today_date"
+	cp "$nas_hashlist_with_filename" "$nas_hashlist_with_filename.$today_date"
 	cp "$nas_hashlist" "$nas_hashlist.$today_date"
 	cp "$nas_hashlist_uniq" "$nas_hashlist_uniq.$today_date"
+	cp "$nas_hashlist_duplicated" "$nas_hashlist_duplicated.$today_date"
 }
 
 restore_nas_hashlists(){
@@ -147,11 +142,13 @@ restore_nas_hashlists(){
 	rm "$nas_hashlist_with_filename"
 	rm "$nas_hashlist"
 	rm "$nas_hashlist_uniq"
+	rm "$nas_hashlist_duplicated"
 
 	echo "# Restoring olds nas #"
 	mv "$nas_hashlist_with_filename.$today_date" "$nas_hashlist_with_filename"
 	mv "$nas_hashlist.$today_date" "$nas_hashlist"
 	mv "$nas_hashlist_uniq.$today_date" "$nas_hashlist_uniq"
+	mv "$nas_hashlist_duplicated.$today_date" "$nas_hashlist_duplicated"
 }
 
 update_hashfiles_from_sourcefolder(){
@@ -177,20 +174,17 @@ update_hashfiles_from_sourcefolder(){
 					echo_warning "Photo trouvée ailleurs que dans le sous dossier.. "
 					echo_warning "Continue.."
 			else
-				# Remove lines with this hash $p
-				sed -i '/$p/d' "$nas_hashlist_with_filename"
+				# Remove lines with this hash
+				remove_line_in_nashashlistwithfilename_from_hash "$p"
 			fi
 		fi
-	done < "$hashlist"
+	done <<< "$hashlist"
 	# Here $nas_hashlist_with_filename is cleaned with all hashes found on $hashlist
 
 	# New lines are from source_folder so in hashlist_with_filename and hashlist
 	# update nas_hashlist with those file
 	cat "$hashlist_with_filename" >> "$nas_hashlist_with_filename"
-	sort -o "$nas_hashlist_with_filename" "$nas_hashlist_with_filename"
-	cat "$nas_hashlist_with_filename" | awk '{print $1}' > "$nas_hashlist"
-	cat "$nas_hashlist" | sort | uniq > "$nas_hashlist_uniq"
-
+	update_nas_hashlist_based_on_nashashlistwithfilename
 }
 
 search_missing_photos(){
@@ -245,30 +239,44 @@ copy_missing_filenames(){
 			fi
 			((count_copied++))
 			#prepare for update_nas_hashlist_with_copied_files : which file in which final dest folder etc.
-			# ex to insert : f370a6aaaa87714bb13d219f79058549  ./DSC_2876.JPG
+			add_line_in_nashashlistwithfilename "$p" "$remote_full_path_album/$missing_short_file"
 			echo -e "$p\t$remote_full_path_album/$missing_short_file" >> "$temp_new_hash_for_nas_hashlist"
 		fi
-	done < "$missing_hash_photos"
+	done < "$missing_hash_photos"	
+	echo_verbose "Copie de temp_hashlist dans album_folder"
+	cp "$temp_new_hash_for_nas_hashlist" "$copied_hashlist"
+	rm "$temp_new_hash_for_nas_hashlist"
+	update_nas_hashlist_based_on_nashashlistwithfilename
 }
 
-update_nas_hashlist_with_copied_files(){
-	echo_verbose "-------------- Ajout du nouveau Hashlist dans la référence du NAS ------------------"
-	echo_verbose "Ajout dans hashlists"
-	cat "$temp_new_hash_for_nas_hashlist" >> "$nas_hashlist_with_filename"
-	cat "$temp_new_hash_for_nas_hashlist" | awk -F"\t" '{print $1}' >> "$nas_hashlist"
+add_line_in_nashashlistwithfilename(){
+	# ex to insert : f370a6aaaa87714bb13d219f79058549  ./DSC_2876.JPG
+	echo -e "$1\t$2" >> "$nas_hashlist_with_filename"
+}
 
-	echo_verbose "Copie de temp_hashlist dans album_folder"
+remove_line_in_nashashlistwithfilename_from_path(){
+	# ex : f370a6aaaa87714bb13d219f79058549  /path/to/DSC_2876.JPG
+	sed -i '/$1/d' "$nas_hashlist_with_filename"
+}
+remove_line_in_nashashlistwithfilename_from_hash(){
+	sed -i '/$1/d' "$nas_hashlist_with_filename"
+}
 
-	cp "$temp_new_hash_for_nas_hashlist" "$copied_hashlist"
-	rm -f "$temp_new_hash_for_nas_hashlist"
+update_nas_hashlist_based_on_nashashlistwithfilename(){
+	# TODO 
+	echo_verbose "-------------- Mise à jour des hashlists à partir de nas_hashlist_with_filename ------------------"
 
-	echo_verbose "Mise à jour du hashlist_uniq"
+	echo_verbose "Mise à jour du hashlist_uniq et hashlist_duplciated"
 	make_uniq_hashfile_folder
+	if [ "$SOURCE_MODE" = "nas" ]; then
+		make_duplicated_hashfile
+	fi
 
 	echo_verbose "Nettoyage des lignes vides dans les hashfiles"
 	sed -i '/^$/d' "$nas_hashlist_with_filename"
 	sed -i '/^$/d' "$nas_hashlist"
 	sed -i '/^$/d' "$nas_hashlist_uniq"
+	sed -i '/^$/d' "$nas_hashlist_duplicated"
 
 	echo_verbose "Triage des hashlists"
 	sort -o "$nas_hashlist_with_filename" "$nas_hashlist_with_filename"
@@ -292,13 +300,12 @@ extract_already_copied_location(){
 
 			nas_parent_album=${nas_file_location#*/photo/*}
 			nas_parent_album=`dirname "$nas_parent_album"`
-			## TODO
-			# nas_file_location =
-			# nas_parent_album =
 			if [[ "$nas_file_location" == *"$nas_parent_album"* ]]; then
 					# Dans le cas du déplacement d'un fichier depuis le NAS vers le NAS
 					# on ignore
-					echo_verbose "### Ignoring already found ###"
+					echo_verbose "### Ignoring already found -- because file already on NAS ###"
+					echo "nas_file_location=$nas_file_location"
+					echo "nas_parent_album=$nas_parent_album"
 					continue
 			fi
 			echo_verbose "##$nas_parent_album##  - ##$##"
@@ -363,28 +370,98 @@ move_duplicated_files(){
 	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
 	do
 		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs )
+		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs )
+		if [ "$SOURCE_MODE" = "nas" ] && [ ! -f "$photo_hash_path" ]; then 
+			echo_error "NAS hashfiles not uptodate.."
+			echo_error "Source not exists : $photo_hash_path"
+			continue
+		fi
 		if grep -q "$photo_hash" "$nas_hashlist_duplicated" ; then
 			# move to DUPLICATED folder
 			photos_duplicated=$(grep "$photo_hash" "$nas_hashlist_with_filename")
 			while IFS="" read -r photo || [ -n "$photo" ]
 			do
 				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs )
+				photo_filename=`basename $photo_path` 
 				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
 				if [ "$to_move" -ne 0 ]; then
 					if [ "$SOURCE_MODE" = "nas" ]; then
 						# do mv
-						mv "$photo_path" "$duplicated_folder/"
+						if [ -f "$photo_path" ]; then 
+							mv "$photo_path" "$duplicated_folder/"
+							remove_line_in_nashashlistwithfilename_from_path "$photo_path"
+							add_line_in_nashashlistwithfilename "$photo_hash" "$duplicated_folder/$photo_filename"
+						else 
+							echo_error "NAS hashfiles not uptodate.."
+							echo_error "Duplicated file not exists : $photo_path"
+						fi
 						syno_reindex_needed=1
 					else 
 						echo "Simulate move from $photo_path to $duplicated_folder"
 					fi
 					((moved_photos++))
 				fi
-			done <<< $photos_duplicated
+			done <<< "$photos_duplicated"
 		fi
-	done <<< $photos_in_album
+	done <<< "$photos_in_album"
+	echo "Duplicated photo moved : $moved_photos"
+
+	update_nas_hashlist_based_on_nashashlistwithfilename
+}
+clean_duplicated_files(){
+	# Move files found elsewhere and move them into Duplicated folder
+	echo_verbose "------------- Clean duplicated files -------------"
+	photos_in_album=$(grep "$remote_full_path_album" "$nas_hashlist_with_filename")
+	# remote_full_path_album=/volume1/photo/Mariage Matt&Flo - 05-09-19/Eglise
+	moved_photos=0
+	if [ "$SOURCE_MODE" != "nas" ]; then
+		echo_warning "read-only mode -- cannot move files !"
+	fi
+	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
+	do
+		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs )
+		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs )
+		if [ "$SOURCE_MODE" = "nas" ] && [ ! -f "$photo_hash_path" ]; then 
+			echo_error "NAS hashfiles not uptodate.."
+			echo_error "Source not exists : $photo_hash_path"
+			continue
+		fi
+		if grep -q "$photo_hash" "$nas_hashlist_duplicated" ; then
+			# move to DUPLICATED folder
+			photos_duplicated=$(grep "$photo_hash" "$nas_hashlist_with_filename")
+			while IFS="" read -r photo || [ -n "$photo" ]
+			do
+				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs )
+				photo_filename=`basename $photo_path` 
+				# must not match remote_full_path_album -- as we move only photo outside of this album
+				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
+				if [ "$to_move" -eq 0 ]; then
+					if [ "$SOURCE_MODE" = "nas" ]; then
+						# do mv
+						if [ -f "$photo_path" ]; then 
+							mv "$photo_path" "$duplicated_folder/"
+							remove_line_in_nashashlistwithfilename_from_path "$photo_path"
+							add_line_in_nashashlistwithfilename "$photo_hash" "$duplicated_folder/$photo_filename"
+						else 
+							echo_error "NAS hashfiles not uptodate.."
+							echo_error "Duplicated file not exists : $photo_path"
+						fi
+						#echo "Simulate move from $photo_path to $duplicated_folder"
+						#echo "Because : $photo_path exists here $photo_hash_path"
+						syno_reindex_needed=1
+					else 
+						echo "Simulate move from $photo_path to $duplicated_folder"
+						#echo "Because : $photo_path exists here $photo_hash_path"
+					fi
+					((moved_photos++))
+				fi
+			done <<< "$photos_duplicated"
+		fi
+	done <<< "$photos_in_album"
 	echo "Duplicated photo moved : $moved_photos"
 	#See if we remove those file from nas_hashfiles to make it more closer from real state
+
+	update_nas_hashlist_based_on_nashashlistwithfilename
 }
 
 create_folder_or_keep_clean(){
@@ -445,7 +522,6 @@ clean_non_persistent_hashfiles(){
 		# Clean calculated hashes
 		safe_remove "$hashlist_with_filename"
 		safe_remove "$hashlist"
-		safe_remove "$hashlist_uniq"
 		safe_remove "$already_copied_photos_hashlist"
 		safe_remove "$missing_hash_photos"
 	fi
@@ -455,7 +531,11 @@ safe_remove(){
 	if [[ "$1" == *"nas_hashlist"* ]]; then
 		echo_error "SAFE-REMOVE : do not clean $1 because contains 'nas'"
 	else 
-		rm "$1"
+		if [ ! -f "$1" ]; then 
+			echo_error "SAFE-REMOVE : $1 not exists..."
+		else 
+			rm "$1"
+		fi
 	fi
 }
 
@@ -479,7 +559,7 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		-h|"-?"|--help)
 			shift
-			echo "usage: $0 [--block-reindex] [--copy source album_name] [--duplicate] [--log] [--move_duplicated] [--nas] [--reuse] [--short] [--test source album_name] [--verbose] "
+			echo "usage: $0 [--block-reindex] [--clean_duplicated] [--copy source album_name] [--duplicate] [--log] [--move_duplicated] [--nas] [--reuse] [--short] [--test source album_name] [--verbose] "
 			exit 0
 			;;
 		-b|--block-reindex)
@@ -537,6 +617,19 @@ while [ $# -gt 0 ]; do
 			MODE=nas
 			shift;
 			;;	
+		--clean_duplicated)
+			MODE=clean_duplicated
+			if [ $# -lt 2 ]; then
+				echo '1 paramètre est nécessaire : Nom de l album de référence pour lequel les photos qui existent ailleurs seront mises de côté' 
+				echo 'Example : check_fileexist_syno.sh --clean_duplicated "Noël/Super Album - 25-12-19/"'
+				exit -1
+			else
+				path_album_name=$2
+				echo_verbose "Using path_album_name=$path_album_name"
+			fi
+			shift;
+			shift;
+			;;
 		-r|--reuse)
 			check_syno_hostname
 			REUSE=1
@@ -615,7 +708,7 @@ nas_hashlist="$hashfile_location/nas_hashlist.hash" #used for duplicated feature
 nas_hashlist_with_filename="$hashfile_location/nas_hashlist_with_filename.hash"
 nas_hashlist_uniq="$hashfile_location/nas_hashlist_uniq.hash"
 nas_hashlist_duplicated="$hashfile_location/nas_hashlist_duplicated.hash"
-if [ "$MODE" = move_duplicated ]; then 
+if [ "$MODE" = move_duplicated ] || [ "$MODE" = clean_duplicated ]; then 
 	remote_full_path_album="$path_to_remote_photo/$path_album_name"
 	duplicated_folder="$remote_full_path_album/Duplicated"
 	if [ "$SOURCE_MODE" = "nas" ]; then 
@@ -644,7 +737,6 @@ if [ "$MODE" = copy ] || [ "$MODE" = test ]; then
 
 	hashlist_with_filename="$hashfile_location/dcim_hashlist_with_filename.hash"
 	hashlist="$hashfile_location/dcim_hashlist.hash"
-	hashlist_uniq="$hashfile_location/dcim_hashlist_uniq.hash"
 	already_copied_photos_hashlist="$hashfile_location/already_copied_photos_hashlist.hash"
 	missing_hash_photos="$hashfile_location/missing_hash_photos.hash"
 else if [ "$MODE" = nas ]; then
@@ -673,6 +765,9 @@ if [ "$MODE" = duplicate ]; then
 elif [ "$MODE" = move_duplicated ]; then 
 	move_duplicated_files
 	request_reindex_if_photos_moved
+elif [ "$MODE" = clean_duplicated ]; then 
+	clean_duplicated_files
+	request_reindex_if_photos_moved
 else 
 	# Create hash_list for NAS or Computer
 	echo_verbose "source_dcim_folder=$source_dcim_folder"
@@ -686,7 +781,6 @@ else
 		if [ "$MODE" = copy ]; then
 			copy_missing_filenames
 			show_and_move_location_already_copied_photos_on_nas
-			update_nas_hashlist_with_copied_files
 			request_reindex_if_photos_moved
 		elif [ "$MODE" = test ]; then
 			show_and_move_location_already_copied_photos_on_nas
