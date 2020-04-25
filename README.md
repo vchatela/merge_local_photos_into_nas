@@ -191,6 +191,7 @@ valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ /mnt/d/Syno/t
 ```
 
 ## Feature : --move_duplicated
+```
 Avant 
 Album1 		Album2 			Album3
 -----		-----			----
@@ -209,8 +210,9 @@ Album1 		Album2 			Album3
 Photo1		Photo2			Photo3
 Photo4		Photo4 			/duplicated/Photo4 
 Photo5		Photo6			/duplicated/Photo5
-
+```
 ## Feature : --clean_duplicated
+```
 Avant 
 Album1 		Album2 			Album3
 -----		-----			----
@@ -232,7 +234,7 @@ Photo1		Photo2			Photo3
 							/duplicated/Album1/Photo4
 							/duplicated/Album2/Photo4
 							/duplicated/Album1/Photo5
-
+```
 ## Script déplacement
 Tâche automatique de rangement des photos sur le NAS
 ```
