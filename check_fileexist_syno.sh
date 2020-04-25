@@ -161,8 +161,8 @@ update_hashfiles_from_sourcefolder(){
 
 	while IFS="" read -r p || [ -n "$p" ]
 	do
-		old_file_location=$(grep "$p" "$nas_hashlist_with_filename" | awk -F"\t" '{print $2}' | xargs)
-		new_file_location=$(grep "$p" "$hashlist_with_filename" | awk -F"\t" '{print $2}' | xargs)
+		old_file_location=$(grep "$p" "$nas_hashlist_with_filename" | awk -F"\t" '{print $2}' | xargs -0)
+		new_file_location=$(grep "$p" "$hashlist_with_filename" | awk -F"\t" '{print $2}' | xargs -0)
 		# Validation du sous dossier - Ex : old_file_location=/volume1/photo/Chargement Appareil Photo Val/toto.jpg
 		# Déplacé en : new_file_location=/volume1/photo/Chargement Appareil Photo Val/Noël/toto.jpg
 		# old_album_folder=/volume1/photo/Chargement Appareil Photo Val/Noël
@@ -225,7 +225,7 @@ copy_missing_filenames(){
 	echo_bold "## Photos copiées ##" >> "$logfile"
 	while IFS="" read -r p || [ -n "$p" ]
 	do
-		missing_file=$(grep "$p" "$hashlist_with_filename" | awk -F"\t" '{print $2}' | xargs)
+		missing_file=$(grep "$p" "$hashlist_with_filename" | awk -F"\t" '{print $2}' | xargs -0)
 		if [ ! -f "$missing_file" ]; then
 			echo_error "$missing_file non trouvé !"
 			echo_error "$missing_file non trouvé !" >> "$logfile"
@@ -295,8 +295,8 @@ extract_already_copied_location(){
 	if [ -s "$already_copied_photos_hashlist" ]; then 
 		while IFS="" read -r p || [ -n "$p" ]
 		do
-			already_copied_file=$(grep "$p" "$hashlist_with_filename" | awk -F"\t" '{print $2}'  | xargs)
-			nas_file_location=$(grep "$p" "$nas_hashlist_with_filename" | awk -F"\t" '{print $2}'  | xargs)
+			already_copied_file=$(grep "$p" "$hashlist_with_filename" | awk -F"\t" '{print $2}'  | xargs -0)
+			nas_file_location=$(grep "$p" "$nas_hashlist_with_filename" | awk -F"\t" '{print $2}'  | xargs -0)
 
 			nas_parent_album=${nas_file_location#*/photo/*}
 			nas_parent_album=`dirname "$nas_parent_album"`
@@ -344,18 +344,18 @@ search_duplicated_files(){
 		count_total_local_photo_duplicated=0
 		# 001d21360effa628a34c10e62fd2749e          /volume1/photo/Léon/2015/Février 2015/20150131-141311.JPG
 		# 001d21360effa628a34c10e62fd2749e          /volume1/photo/Sauvegarde Caro/LEON/14mois/20150131-141311.JPG
-	  	duplicated_photos=$(grep "$duplicated_hash" $nas_hashlist_with_filename)
+	  	duplicated_photos=$(grep "$duplicated_hash" "$nas_hashlist_with_filename")
 		echo "Photo (#$count_duplicated) : $duplicated_hash" >> "$logfile"
 		while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
 		do
 			((count_total_instance_duplicated++))
 			((count_total_local_photo_duplicated++))
-			photo=$(echo "$photo_hash_line" | awk -F"\t" '{print $2}' | xargs)
-			echo "#$count_total_local_photo_duplicated - $photo" >> "$logfile"
-		done <<< $duplicated_photos
+			photo=$(echo "$photo_hash_line" | awk -F"\t" '{print $2}' | xargs -0)
+			echo "$count_total_local_photo_duplicated - $photo" >> "$logfile"
+		done <<< "$duplicated_photos"
 		echo "--------" >> "$logfile" 
 		#((count_total_instance_duplicated+=$instance_duplicated))
-	done <<< "$nas_hashlist_duplicated"
+	done < "$nas_hashlist_duplicated"
 }
 
 move_duplicated_files(){
@@ -369,8 +369,8 @@ move_duplicated_files(){
 	fi
 	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
 	do
-		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs )
-		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs )
+		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs -0)
+		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs -0)
 		if [ "$SOURCE_MODE" = "nas" ] && [ ! -f "$photo_hash_path" ]; then 
 			echo_error "NAS hashfiles not uptodate.."
 			echo_error "Source not exists : $photo_hash_path"
@@ -381,7 +381,7 @@ move_duplicated_files(){
 			photos_duplicated=$(grep "$photo_hash" "$nas_hashlist_with_filename")
 			while IFS="" read -r photo || [ -n "$photo" ]
 			do
-				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs )
+				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs -0)
 				photo_filename=`basename $photo_path` 
 				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
 				if [ "$to_move" -ne 0 ]; then
@@ -401,9 +401,9 @@ move_duplicated_files(){
 					fi
 					((moved_photos++))
 				fi
-			done <<< "$photos_duplicated"
+			done <<< $photos_duplicated
 		fi
-	done <<< "$photos_in_album"
+	done < "$photos_in_album"
 	echo "Duplicated photo moved : $moved_photos"
 
 	update_nas_hashlist_based_on_nashashlistwithfilename
@@ -419,8 +419,8 @@ clean_duplicated_files(){
 	fi
 	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
 	do
-		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs )
-		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs )
+		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs -0)
+		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs -0)
 		if [ "$SOURCE_MODE" = "nas" ] && [ ! -f "$photo_hash_path" ]; then 
 			echo_error "NAS hashfiles not uptodate.."
 			echo_error "Source not exists : $photo_hash_path"
@@ -431,7 +431,7 @@ clean_duplicated_files(){
 			photos_duplicated=$(grep "$photo_hash" "$nas_hashlist_with_filename")
 			while IFS="" read -r photo || [ -n "$photo" ]
 			do
-				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs )
+				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs -0)
 				photo_filename=`basename $photo_path` 
 				# must not match remote_full_path_album -- as we move only photo outside of this album
 				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
@@ -455,9 +455,9 @@ clean_duplicated_files(){
 					fi
 					((moved_photos++))
 				fi
-			done <<< "$photos_duplicated"
+			done <<< $photos_duplicated
 		fi
-	done <<< "$photos_in_album"
+	done < "$photos_in_album"
 	echo "Duplicated photo moved : $moved_photos"
 	#See if we remove those file from nas_hashfiles to make it more closer from real state
 
