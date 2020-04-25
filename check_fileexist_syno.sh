@@ -256,10 +256,10 @@ add_line_in_nashashlistwithfilename(){
 
 remove_line_in_nashashlistwithfilename_from_path(){
 	# ex : f370a6aaaa87714bb13d219f79058549  /path/to/DSC_2876.JPG
-	sed -i '/$1/d' "$nas_hashlist_with_filename"
+	sed -i "/$1/d" "$nas_hashlist_with_filename"
 }
 remove_line_in_nashashlistwithfilename_from_hash(){
-	sed -i '/$1/d' "$nas_hashlist_with_filename"
+	sed -i "/$1/d" "$nas_hashlist_with_filename"
 }
 
 update_nas_hashlist_based_on_nashashlistwithfilename(){
@@ -392,7 +392,7 @@ move_duplicated_files(){
 						# do mv
 						if [ -f "$photo_path" ]; then 
 							mv "$photo_path" "$duplicated_folder/"
-							echo_copied "Déplacement : $photo_path" >> "$logfile"
+							echo_copied "Déplacement : $photo_path -- dans $duplicated_folder" >> "$logfile"
 							remove_line_in_nashashlistwithfilename_from_path "$photo_path"
 							add_line_in_nashashlistwithfilename "$photo_hash" "$duplicated_folder/$photo_filename"
 						else 
@@ -444,7 +444,7 @@ clean_duplicated_files(){
 						# do mv
 						if [ -f "$photo_path" ]; then 
 							mv "$photo_path" "$duplicated_folder/"
-							echo_copied "Déplacement : $photo_path" >> "$logfile"
+							echo_copied "Déplacement : $photo_path -- dans $duplicated_folder" >> "$logfile"
 							remove_line_in_nashashlistwithfilename_from_path "$photo_path"
 							add_line_in_nashashlistwithfilename "$photo_hash" "$duplicated_folder/$photo_filename"
 						else 
