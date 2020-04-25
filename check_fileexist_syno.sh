@@ -103,9 +103,9 @@ make_hasfile_folder(){
 	echo_verbose "------------- Creating Hashfile -------------"
 
 	if [ $SHORT -eq 1 ]; then
-		find "$source_dcim_folder" -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) | head -$limit_find_output | xargs -d "\n" "$xxh_location" -H2 | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > "$hashlist_with_filename"
+		find "$source_dcim_folder" -type f -not -path '*@eaDir*' ! -path "*#recycle*" ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) | head -$limit_find_output | xargs -d "\n" "$xxh_location" -H2 | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > "$hashlist_with_filename"
 	else
-		find "$source_dcim_folder" -type f -not -path '*@eaDir*' ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec "$xxh_location" -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > "$hashlist_with_filename"
+		find "$source_dcim_folder" -type f -not -path '*@eaDir*' ! -path "*#recycle*" ! -name 'SYNO@.fileindexdb' ! -name 'Thumbs.db' ! -name '*.sort'  \( -name "*.png" -or -name "*.PNG" -or -name "*.jpeg" -or -name "*.jpg" -or -name "*.JPG" \) -exec "$xxh_location" -H2 "{}" + | sort | sed -r -e 's/^[a-zA-Z0-9]{32}/&\t/' > "$hashlist_with_filename"
 	fi
 	#f370a6aaaa87714bb13d219f79058549  ./DSC_2876.JPG
 	cat "$hashlist_with_filename" | awk '{print $1}' > "$hashlist"
