@@ -353,7 +353,7 @@ search_duplicated_files(){
 		do
 			((count_total_instance_duplicated++))
 			((count_total_local_photo_duplicated++))
-			photo=$(echo "$photo_hash_line" | awk -F"\t" '{print $2}' | xargs -0)
+			photo=$(echo "$photo_hash_line" | awk -F"\t" '{print $2}' | xargs)
 			echo "$count_total_local_photo_duplicated - $photo" >> "$logfile"
 		done <<< "$duplicated_photos"
 		echo "--------" >> "$logfile" 
@@ -372,8 +372,8 @@ move_duplicated_files(){
 	fi
 	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
 	do
-		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs -0)
-		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs -0)
+		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs)
+		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs)
 		if [ "$SOURCE_MODE" = "nas" ] && [ ! -f "$photo_hash_path" ]; then 
 			echo_error "NAS hashfiles not uptodate.."
 			echo_error "Source not exists : $photo_hash_path"
@@ -384,14 +384,15 @@ move_duplicated_files(){
 			photos_duplicated=$(grep "$photo_hash" "$nas_hashlist_with_filename")
 			while IFS="" read -r photo || [ -n "$photo" ]
 			do
-				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs -0)
-				photo_filename=`basename $photo_path` 
+				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs)
+				photo_filename=`basename "$photo_path"` 
 				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
 				if [ "$to_move" -ne 0 ]; then
 					if [ "$SOURCE_MODE" = "nas" ]; then
 						# do mv
 						if [ -f "$photo_path" ]; then 
 							mv "$photo_path" "$duplicated_folder/"
+							echo_copied "Déplacement : $photo_path" >> "$logfile"
 							remove_line_in_nashashlistwithfilename_from_path "$photo_path"
 							add_line_in_nashashlistwithfilename "$photo_hash" "$duplicated_folder/$photo_filename"
 						else 
@@ -404,9 +405,9 @@ move_duplicated_files(){
 					fi
 					((moved_photos++))
 				fi
-			done <<< $photos_duplicated
+			done <<< "$photos_duplicated"
 		fi
-	done < "$photos_in_album"
+	done <<< "$photos_in_album"
 	echo "Duplicated photo moved : $moved_photos"
 
 	update_nas_hashlist_based_on_nashashlistwithfilename
@@ -422,8 +423,8 @@ clean_duplicated_files(){
 	fi
 	while IFS="" read -r photo_hash_line || [ -n "$photo_hash_line" ]
 	do
-		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs -0)
-		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs -0)
+		photo_hash=$(echo "$photo_hash_line" | awk -F "\t" '{print $1}'  | xargs)
+		photo_hash_path=$(echo "$photo_hash_line" | awk -F "\t" '{print $2}'  | xargs)
 		if [ "$SOURCE_MODE" = "nas" ] && [ ! -f "$photo_hash_path" ]; then 
 			echo_error "NAS hashfiles not uptodate.."
 			echo_error "Source not exists : $photo_hash_path"
@@ -434,8 +435,8 @@ clean_duplicated_files(){
 			photos_duplicated=$(grep "$photo_hash" "$nas_hashlist_with_filename")
 			while IFS="" read -r photo || [ -n "$photo" ]
 			do
-				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs -0)
-				photo_filename=`basename $photo_path` 
+				photo_path=$(echo "$photo" | awk -F "\t" '{print $2}'  | xargs)
+				photo_filename=`basename "$photo_path"` 
 				# must not match remote_full_path_album -- as we move only photo outside of this album
 				to_move=$(echo "$photo_path" | grep -c "$remote_full_path_album")
 				if [ "$to_move" -eq 0 ]; then
@@ -443,6 +444,7 @@ clean_duplicated_files(){
 						# do mv
 						if [ -f "$photo_path" ]; then 
 							mv "$photo_path" "$duplicated_folder/"
+							echo_copied "Déplacement : $photo_path" >> "$logfile"
 							remove_line_in_nashashlistwithfilename_from_path "$photo_path"
 							add_line_in_nashashlistwithfilename "$photo_hash" "$duplicated_folder/$photo_filename"
 						else 
@@ -458,9 +460,9 @@ clean_duplicated_files(){
 					fi
 					((moved_photos++))
 				fi
-			done <<< $photos_duplicated
+			done <<< "$photos_duplicated"
 		fi
-	done < "$photos_in_album"
+	done <<< "$photos_in_album"
 	echo "Duplicated photo moved : $moved_photos"
 	#See if we remove those file from nas_hashfiles to make it more closer from real state
 
@@ -504,7 +506,7 @@ request_reindex_if_photos_moved(){
 				while true; do
 					read -p "Il faut réindexer le NAS, as tu terminé le rangement pour lancer la réindexation ?  [Oui/Non]" on
 					case $on in
-						[Oo]* )  echo_verbose "Reindéxation lancée : $path_to_script_folder/syno_reindex.sh" ; $current_dir/syno_reindex.sh ; reindexed=1; echo "0" > $syno_reindex_need_file ; break;;
+						[Oo]* )  echo_verbose "Reindéxation lancée : $path_to_script_folder/syno_reindex.sh" ; $path_to_script_folder/syno_reindex.sh ; reindexed=1; echo "0" > $syno_reindex_need_file ; break;;
 						[Nn]* )  break;;
 						* ) echo "Entrez Oui ou Non";;
 					esac
