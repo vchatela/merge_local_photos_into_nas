@@ -266,19 +266,22 @@ update_nas_hashlist_based_on_nashashlistwithfilename(){
 	# TODO 
 	echo_verbose "-------------- Mise à jour des hashlists à partir de nas_hashlist_with_filename ------------------"
 
-	echo_verbose "Mise à jour du hashlist_uniq et hashlist_duplciated"
+	echo_verbose "Mise à jour du nas_hashlist a partir du nas_hashlist_with_filename"
+	cat "$nas_hashlist_with_filename" | awk '{print $1}' > "$nas_hashlist"
+
+	echo_verbose "Mise à jour du nas_hashlist_uniq et nas_hashlist_duplciated"
 	make_uniq_hashfile_folder
 	if [ "$SOURCE_MODE" = "nas" ]; then
 		make_duplicated_hashfile
 	fi
 
-	echo_verbose "Nettoyage des lignes vides dans les hashfiles"
+	echo_verbose "Nettoyage des lignes vides dans les nas_hashfiles"
 	sed -i '/^$/d' "$nas_hashlist_with_filename"
 	sed -i '/^$/d' "$nas_hashlist"
 	sed -i '/^$/d' "$nas_hashlist_uniq"
 	sed -i '/^$/d' "$nas_hashlist_duplicated"
 
-	echo_verbose "Triage des hashlists"
+	echo_verbose "Triage des nas_hashlists"
 	sort -o "$nas_hashlist_with_filename" "$nas_hashlist_with_filename"
 	sort -o "$nas_hashlist" "$nas_hashlist"
 }
