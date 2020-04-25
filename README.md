@@ -18,7 +18,7 @@
 
 ## Tests
 - [x] 10 tests de validation du comportement attendus
-- [ ] tests sur les fonctionnalités reuse, duplicate et move_duplicated
+- [ ] tests sur les fonctionnalités reuse, duplicate, clean_duplicated et move_duplicated
 
 ## Exemples 
 Cf Utilisations (sous Architecture)
