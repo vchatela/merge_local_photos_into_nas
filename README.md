@@ -87,7 +87,7 @@ Accès de D:\Syno\tools depuis /mnt/d/Syno/tools
 
 ### Astuce montage SD (bash W10)
 ```
-valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/$ cat mount_sd_h.sh
+valentin@pc:/mnt/d/Syno/tools/photos/merge_local_photos_into_nas/utils/$ cat mount_sd_h.sh
 sudo mkdir -p /mnt/h
 sudo mount -t drvfs H: /mnt/h
 # Lancement de la fonction $1 (copy OU test) et $2 le nom de l'album (peut être un chemin avec les /)

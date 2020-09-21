@@ -16,7 +16,7 @@ echo > /volume1/logs/tools/exiftool.err
 echo -e "Folder=$folder\n" | tee $logfile
 
 ## Rename
-exiftool -a -q -q -F -r -m -i @eaDir -i "#recycle" -d %Y%m%d-%H%M%S%%-c.%%e "-filename<CreateDate" "$folder" 2> /volume1/logs/tools/exiftool.err
+exiftool -a -q -q -F -r -m -i @eaDir -i "#recycle" -i "GoProVideos" -d %Y%m%d-%H%M%S%%-c.%%e "-filename<CreateDate" "$folder" 2> /volume1/logs/tools/exiftool.err
 result=$?
 if [ ! $result -eq 0 ]; then
 	>&2 date ; cat /volume1/logs/tools/exiftool.err
